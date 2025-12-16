@@ -431,7 +431,7 @@ const BestProduct = () => {
   const banners = [
     {
         className: "fk-banner-1",
-        image: "public/pencilcombo.png", // Use your placeholder or actual image URL
+        image: "/pencilcombo.png", // Use your placeholder or actual image URL
         height: "250px", 
         overlay: "rgba(0, 0, 0, 0.4)",
         title: `"All Your Stationery Needs"`,
@@ -444,7 +444,7 @@ const BestProduct = () => {
     },
     {
         className: "fk-banner-2",
-        image: "public/pencilcombo.png", // Use your placeholder or actual image URL
+        image: "/pencilcombo.png", // Use your placeholder or actual image URL
         height: "250px", 
         overlay: "rgba(30, 70, 100, 0.5)",
         title: `Get 10% Off All Book Orders!`,
@@ -457,7 +457,7 @@ const BestProduct = () => {
     },
     {
         className: "fk-banner-3",
-        image: "public/pencilcombo.png", // Use your placeholder or actual image URL
+        image: "/pencilcombo.png", // Use your placeholder or actual image URL
         height: "250px", 
         overlay: "rgba(180, 0, 0, 0.6)",
         title: `Need a Printout? Quick Xerox Service Available!`,
