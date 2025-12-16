@@ -1109,19 +1109,19 @@ const BestProduct = () => {
         // 1. STATIONARY PRODUCTS
         { 
             name: 'STATIONARY', 
-            file: '/e service 4.jpg', 
+            file: 'category/e service 4.jpg', 
             path: '/shop' 
         },
         // 2. BOOK
         { 
             name: 'BOOK', 
-            file: '/e service 1.jpg', 
+            file: 'category/e service 1.jpg', 
             path: '/books-page' 
         }, 
         // 3. XEROX
         { 
             name: 'XEROX', 
-            file: '/e sevice 3.jpg', 
+            file: 'category/e sevice 3.jpg', 
             path: '/xerox-page' 
         },
         // 4. ELECTRONIC KIT
