@@ -38,7 +38,7 @@ const imageMapping = {
   "2131230871": "baseline_minimize_24.png",
   "2131230872": "baseline_person_24.png",
   "2131230873": "baseline_person_add_alt_1_24.png",
-  "2131230874": "baseline_preview_24.png",
+  "2IA31230874": "baseline_preview_24.png",
   "2131230875": "baseline_privacy_tip_24.png",
   "2131230876": "baseline_remove_red_eye_24.png",
   "2131230877": "baseline_search_24.png",
@@ -129,7 +129,7 @@ const imageMapping = {
   "2131231147": "tipbox.png",
   "2131231148": "tippencil.png",
   "2131231151": "top_background.png",
-  "2131231152": "uioop.png",
+  "2IA31231152": "uioop.png",
   "2131231153": "unknowenprofile.png",
   "2131231154": "upload.png",
   "2131231155": "upload2.png",
@@ -178,7 +178,7 @@ function ProductOrderUser() {
         const username = orderSnapshot.child("username").val();
         const phno = orderSnapshot.child("phno").val();
         const notes = orderSnapshot.child("notes").val();
-        const ordered = orderSnapshot.child("odered").val();
+        const ordered = orderSnapshot.child("odered").val(); // Note: typo 'odered' in your DB?
         const delivered = orderSnapshot.child("delivered").val();
         const address = orderSnapshot.child("address").val();
         
@@ -202,6 +202,9 @@ function ProductOrderUser() {
           address
         });
       });
+      
+      // Sort orders by most recent first
+      ordersList.sort((a, b) => b.orderTimestamp - a.orderTimestamp);
       
       setOrders(ordersList);
       setLoading(false);
@@ -245,7 +248,7 @@ function ProductOrderUser() {
           <i className="bx bx-package empty-icon"></i>
           <h2>No Orders Found</h2>
           <p>You haven't placed any orders yet.</p>
-          <button className="shop-now-btn" onClick={() => window.location.href = '/shop'}>
+          <button className="shop-now-btn" onClick={() => navigate('/shop')}>
             Shop Now
           </button>
         </div>
@@ -256,13 +259,13 @@ function ProductOrderUser() {
               
               <div className="order-header">
                 <div className="order-info">
-                  <span className="order-id">Order #{order.orderId.substring(0, 8)}</span>
+                  <span className="order-id">Order #{order.orderId.substring(order.orderId.length - 8)}</span>
                   <span className="order-date">{formatDate(order.orderTimestamp)}</span>
                 </div>
                 <div className="order-status1">
                   {order.delivered ? (
                     <span className="status delivered">Delivered</span>
-                  ) : order.ordered ? (
+                  ) : order.ordered ? ( // Using 'ordered' which was in your 'Checkout' logic
                     <span className="status processing">Processing</span>
                   ) : (
                     <span className="status pending">Pending</span>
@@ -272,15 +275,27 @@ function ProductOrderUser() {
               
               <div className="order-products">
                 {order.products.map((product, index) => {
-                  // Pick image from mapping if productimage is an ID
-                  let imgSrc = "unknowenprofile.png";
-                  if (product.productimage) {
+                  
+                  // ==========================================================
+                  //  THIS IS THE FIX:
+                  //  Check for 'productimageurl' first, then fallback to 'productimage'
+                  // ==========================================================
+                  let imgSrc = "/unknowenprofile.png"; // Default fallback
+
+                  if (product.productimageurl) {
+                    // 1. Check for Electronics URL (new system)
+                    imgSrc = product.productimageurl;
+                  } else if (product.productimage) {
+                    // 2. Fallback to Stationery ID/Path (old system)
                     if (imageMapping[product.productimage]) {
+                      // Found ID in map
                       imgSrc = "/" + imageMapping[product.productimage];
                     } else {
-                      imgSrc = product.productimage; // fallback if full URL
+                      // Not in map, assume it's a legacy path/URL
+                      imgSrc = product.productimage; 
                     }
                   }
+                  // ==========================================================
 
                   return (
                     <div key={index} className="product-item">

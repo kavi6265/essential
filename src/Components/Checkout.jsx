@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { database, auth } from "./firebase"; 
+import { database, auth } from "./firebase";
 import { ref, set, get, push } from "firebase/database";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import "../css/Checkout.css";
 
-// Image ID mapping
-const IMAGE_ID_MAPPING = {
-  "2131230840": "about_us.png",
+// Image ID mapping (keep your same mapping)
+const IMAGE_ID_MAPPING = { 
+   "2131230840": "about_us.png",
   "2131230841": "afoursheet.png",
   "2131230842": "athreenote.png",
   "2131230843": "athreenotee.jpg",
@@ -127,7 +127,7 @@ const IMAGE_ID_MAPPING = {
   "2131231144": "stylishpenblue.jpg",
   "2131231146": "tick.png",
   "2131231147": "tipbox.png",
-  "2131231148": "tippencil.png",
+  "2131231148": "tikpencil.png",
   "2131231151": "top_background.png",
   "2131231152": "uioop.png",
   "2131231153": "unknowenprofile.png",
@@ -143,7 +143,7 @@ const IMAGE_ID_MAPPING = {
   "2131231163": "women1.png",
   "2131231164": "xoblue.png",
   "2131231165": "xooblack.png"
-};
+ };
 
 // Extract image name from path
 const extractImageName = (imagePath) => {
@@ -155,11 +155,7 @@ const extractImageName = (imagePath) => {
 // Get image URL from IMAGE_ID_MAPPING or fallback
 const getImageUrl = (imageIdOrPath) => {
   if (!imageIdOrPath) return "/unknowenprofile.png";
-
-  // If it's an ID in mapping
   if (IMAGE_ID_MAPPING[imageIdOrPath]) return `/${IMAGE_ID_MAPPING[imageIdOrPath]}`;
-
-  // If it's a path or URL, extract filename and match mapping
   const name = extractImageName(imageIdOrPath);
   const id = Object.keys(IMAGE_ID_MAPPING).find(key => IMAGE_ID_MAPPING[key] === name);
   return id ? `/${IMAGE_ID_MAPPING[id]}` : imageIdOrPath;
@@ -173,13 +169,21 @@ const Checkout = () => {
   const [formData, setFormData] = useState({ username: "", phno: "", address: "" });
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const productFromBuyNow = location.state?.product || null;
 
-  // Auth and fetch cart
+  // ✅ Single unified useEffect
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+      if (!currentUser) {
+        navigate("/login");
+        return;
+      }
+
       setUser(currentUser);
-      if (currentUser) {
-        // Fetch user details
+
+      try {
+        // Fetch user info
         const userRef = ref(database, `users/${currentUser.uid}`);
         const snapshot = await get(userRef);
         if (snapshot.exists()) {
@@ -190,36 +194,55 @@ const Checkout = () => {
             address: userData.address || ""
           });
         }
-        fetchCartItems(currentUser.uid);
-      } else {
+
+        // ✅ If Buy Now
+         if (productFromBuyNow) {
+          const rawPrice = productFromBuyNow.price || productFromBuyNow.productamt || 0;
+          const numericPrice =
+            typeof rawPrice === "string"
+              ? parseFloat(rawPrice.replace(/[₹,]/g, "")) || 0
+              : parseFloat(rawPrice);
+
+          const discountPercent = parseFloat(productFromBuyNow.discount) || 0;
+          const finalPrice = discountPercent
+            ? numericPrice - (numericPrice * discountPercent) / 100
+            : numericPrice;
+          const singleItem = {
+            id: "temp-" + Date.now(),
+            productname: productFromBuyNow.name || productFromBuyNow.productname,
+            productamt: finalPrice.toFixed(2),
+            productimage: productFromBuyNow.productimage || "",
+            productimageurl: productFromBuyNow.img || productFromBuyNow.imageUrl || "",
+            qty: 1
+          };
+
+          setCartItems([singleItem]);
+          setTotalAmount(finalPrice);
+        } else {
+          // ✅ Normal checkout (from cart)
+          await fetchCartItems(currentUser.uid);
+        }
+      } catch (err) {
+        console.error("Error in checkout:", err);
+      } finally {
         setLoading(false);
-        navigate("/login");
       }
     });
-    return () => unsubscribe();
-  }, [navigate]);
 
-  // Fetch cart items from userscart
+    return () => unsubscribe();
+  }, [navigate, productFromBuyNow]);
+
+  // Fetch cart items
   const fetchCartItems = async (userId) => {
-    setLoading(true);
-    try {
-      const cartRef = ref(database, `userscart/${userId}`);
-      const snapshot = await get(cartRef);
-      if (snapshot.exists()) {
-        const items = [];
-        snapshot.forEach(child => {
-          items.push({ id: child.key, ...child.val() });
-        });
-        setCartItems(items);
-        calculateTotal(items);
-      } else {
-        setCartItems([]);
-        navigate("/cart");
-      }
-    } catch (err) {
-      console.error("Error fetching cart items:", err);
-    } finally {
-      setLoading(false);
+    const cartRef = ref(database, `userscart/${userId}`);
+    const snapshot = await get(cartRef);
+    if (snapshot.exists()) {
+      const items = [];
+      snapshot.forEach(child => items.push({ id: child.key, ...child.val() }));
+      setCartItems(items);
+      calculateTotal(items);
+    } else {
+      navigate("/cart");
     }
   };
 
@@ -254,6 +277,7 @@ const Checkout = () => {
         productname: item.productname,
         productamt: item.productamt,
         productimage: item.productimage || "2131231153",
+        productimageurl: item.productimageurl || null,
         qty: item.qty,
         rating: item.rating || 0,
         description: item.description || ""
@@ -275,9 +299,11 @@ const Checkout = () => {
       const orderRef = ref(database, `userorders/${user.uid}/${orderId}`);
       await set(orderRef, completeOrder);
 
-      // Clear cart
-      const cartRef = ref(database, `userscart/${user.uid}`);
-      await set(cartRef, null);
+      // Clear cart only if not Buy Now
+      if (!productFromBuyNow) {
+        const cartRef = ref(database, `userscart/${user.uid}`);
+        await set(cartRef, null);
+      }
 
       navigate("/success", { state: { orderId, totalAmount: totalAmount.toFixed(2) } });
     } catch (err) {
@@ -292,11 +318,12 @@ const Checkout = () => {
     <div>
       <section id="page-header" className="about-header">
         <h2>#checkout</h2>
-        <p>Complete your purchase</p>
+        <p>{productFromBuyNow ? "Buy Now Product" : "Complete your purchase"}</p>
       </section>
 
       <section id="checkout" className="section-p1">
         <div className="checkout-container">
+          {/* Shipping form */}
           <div className="shipping-details">
             <h3>Shipping Details</h3>
             <form onSubmit={handlePlaceOrder}>
@@ -316,6 +343,7 @@ const Checkout = () => {
             </form>
           </div>
 
+          {/* Order summary */}
           <div className="order-summary">
             <h3>Order Summary</h3>
             <div className="summary-items">
@@ -323,22 +351,24 @@ const Checkout = () => {
                 <div key={item.id} className="summary-item">
                   <div className="item-info">
                     <img
-                      src={getImageUrl(item.productimage)}
+                      src={item.productimageurl || getImageUrl(item.productimage)}
                       alt={item.productname}
                       className="summary-img"
-                      onError={(e) => { e.target.src = "/unknowenprofile.png"; }}
+                      onError={(e) => (e.target.src = "/placeholder.png")}
                     />
                     <div>
                       <h4>{item.productname}</h4>
-                      <p>Qty: {item.qty}</p>
+                      <p>Qty: {item.qty || 1}</p>
                     </div>
                   </div>
-                  <div className="item-price">₹{(parseFloat(item.productamt) * item.qty).toFixed(2)}</div>
+                  <div className="item-price">
+                    ₹{((parseFloat(item.productamt)) * (item.qty || 1)).toFixed(2)}
+                  </div>
                 </div>
               ))}
             </div>
 
-            <div className="summary-total">
+             <div className="summary-total">
               <div className="total-row"><span>Subtotal</span><span>₹{totalAmount.toFixed(2)}</span></div>
               <div className="total-row"><span>Shipping</span><span>Free</span></div>
               <div className="total-row final-total"><span>Total</span><span>₹{totalAmount.toFixed(2)}</span></div>
@@ -346,64 +376,6 @@ const Checkout = () => {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="modern-footer">
-        <div className="footer-content">
-          <div className="footer-column brand-column">
-            <h3>Jasa Essential</h3>
-            <p>Your trusted partner for quality stationery products for students and professionals. We offer a wide range of supplies at competitive prices.</p>
-            <div className="social-icons">
-              
-              <a href="https://www.instagram.com/jasa_essential?igsh=MWVpaXJiZGhzeDZ4Ng=="><i className="bx bxl-instagram"></i></a>
-              
-            </div>
-          </div>
-          
-          <div className="footer-column">
-            <h4>Quick Links</h4>
-            <ul>
-              <li><a href="#">Home</a></li>
-              <li><a href="#">Shop</a></li>
-              <li><a href="#">About Us</a></li>
-              <li><a href="#">Contact</a></li>
-              <li><a href="#">FAQ</a></li>
-            </ul>
-          </div>
-          
-          <div className="footer-column">
-            <h4>Customer Service</h4>
-            <ul>
-              <li><a href="#">My Account</a></li>
-              <li><a href="#">Order History</a></li>
-              <li><a href="#">Shipping Policy</a></li>
-              <li><a href="#">Returns & Exchanges</a></li>
-              <li><a href="#">Terms & Conditions</a></li>
-            </ul>
-          </div>
-          
-          <div className="footer-column contact-info">
-            <h4>Contact Us</h4>
-            <p><i className="bx bx-map"></i> 2/3 line medu pension line 2 nd street  line medu , salem 636006</p>
-            <p><i className="bx bx-phone"></i> (+91) 7418676705</p>
-            
-            <p><i className="bx bx-envelope"></i> jasaessential@gmail.com</p>
-          </div>
-        </div>
-        
-        <div className="footer-bottom" style={{display:"block"}}>
-          <p>&copy; 2025 Jasa Essential. All Rights Reserved.</p>
-          {/* <div className="payment-methods">
-            <i className="bx bxl-visa"></i>
-            <i className="bx bxl-mastercard"></i>
-            <i className="bx bxl-paypal"></i>
-            <i className="bx bxl-google-pay"></i>
-          </div> */}
-          <div className="footer-content">
-        <p className="copyright1" style={{flexDirection:"row"}}>Developed by <a href="https://rapcodetechsolutions.netlify.app/" className="develop-aa"><img src="/Rapcode.png" style={{width:"20px",height:"20px",display:"flex",margin:"auto",flexDirection:"row", marginLeft:"10px"}} alt="RapCode Logo"></img>RapCode Tech Solutions</a></p>
-      </div>
-        </div>
-      </footer>
     </div>
   );
 };

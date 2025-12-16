@@ -225,8 +225,22 @@ const handleTouchEnd = () => {
   setTouchStartX(null);
   setTouchEndX(null);
 };
+const [showScrollButton, setShowScrollButton] = useState(false);
 
-  const categories = ["All", "Casio", "Classmate", "Faber-Castell", "Hauser", "Jasa Essential"];
+useEffect(() => {
+  const handleScroll = () => {
+    if (window.scrollY > 300) {
+      setShowScrollButton(true);
+    } else {
+      setShowScrollButton(false);
+    }
+  };
+
+  window.addEventListener("scroll", handleScroll);
+  return () => window.removeEventListener("scroll", handleScroll);
+}, []);
+
+  const categories = ["All", "Casio", "Classmate", "Faber-Castell", "Hauser", "Jasa Essential","Camlin"];
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -270,6 +284,8 @@ const handleTouchEnd = () => {
               name: product.name,
               price: product.price,
               rating: product.rating || 0,
+              description: product.description || product.discription || "",
+              discount: product.discount,
             });
           });
           setDynamicProducts(fetchedProducts);
@@ -341,6 +357,17 @@ const handleTouchEnd = () => {
   const handleCategoryClick = (category) => setActiveCategory(category);
   const clearSearch = () => setSearchQuery("");
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+  // --- BUY NOW: directly navigate to checkout with selected product ---
+const handleBuyNow = (e, product) => {
+  e.stopPropagation();
+
+  try {
+    navigate("/checkout", { state: { product } });
+  } catch (err) {
+    console.error("Error navigating to checkout:", err);
+    showToastNotification("Something went wrong", "error");
+  }
+};
 
   return (
     <div className="shop-container">
@@ -416,51 +443,82 @@ const handleTouchEnd = () => {
           </button>
         ))}
       </section>
-
+      
       {/* Products Grid */}
       <section className="products-section">
-        <div className="products-grid">
-          {filteredProducts.map((product, index) => {
-            const inCart = isProductInCart(product);
-            return (
-              <div
-                className="product-card"
-                key={index}
-                onClick={() => handleProductClick(product)}
-              >
-                <div className="product-image-container">
-                  <img src={product.img || "/placeholder.png"} alt={product.name} />
-                  <div className="product-actions">
-                    <button
-                      className={`cart-btn ${inCart ? "in-cart" : ""}`}
-                      onClick={(e) => addToCart(e, product)}
-                    >
-                      <i className={`bx ${inCart ? "bx-check" : "bx-cart"}`}></i>
-                    </button>
-                    <button
-                      className="view-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleProductClick(product);
-                      }}
-                    >
-                      <i className="bx bx-show"></i>
-                    </button>
-                  </div>
-                </div>
+  <div className="products-grid">
+    {filteredProducts.map((product, index) => {
+      const inCart = isProductInCart(product);
 
-                <div className="product-info">
-                  <span className="product-brand">{product.brand}</span>
-                  <h5 className="product-name">{product.name}</h5>
-                  <div className="product-footer">
-                    <span className="product-price">{product.price}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+      // Extract numeric value from ₹price string
+      const priceValue = typeof product.price === "string" ? product.price.replace(/[₹,]/g, "") : product.price;
+const numericPrice = parseFloat(priceValue) || 0;
+
+      const discountPercent = parseFloat(product.discount) || 0;
+      const discountedPrice = discountPercent
+        ? (numericPrice - (numericPrice * discountPercent) / 100).toFixed(2)
+        : numericPrice.toFixed(2);
+
+      return (
+        <div
+          className="product-card"
+          key={index}
+          onClick={() => handleProductClick(product)}
+        >
+          <div className="product-image-container">
+            <img src={product.img || "/placeholder.png"} alt={product.name} />
+            {product.discount && (
+              <span className="product-offer-badge">{product.discount}% OFF</span>
+            )}
+          </div>
+
+          <div className="product-info">
+            <span className="product-brand">{product.brand}</span>
+            <h5 className="product-name">{product.name}</h5>
+            {product.description && (
+              <p className="product-description">{product.description}</p>
+            )}
+
+            <div className="product-footer">
+              {product.discount ? (
+                <>
+                  <span className="product-discounted-price">
+                    ₹{discountedPrice}
+                  </span>
+                  <span className="product-old-price">{product.price}</span>
+                </>
+              ) : (
+                <span className="product-price">{product.price}</span>
+              )}
+            </div>
+
+            <div className="product-buttons">
+              <button
+                className={`add-cart-btn ${inCart ? "in-cart" : ""}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addToCart(e, product);
+                }}
+              >
+                <i className={`bx ${inCart ? "bx-check" : "bx-cart"}`}></i>
+                {inCart ? " Added" : " Add to Cart"}
+              </button>
+
+              <button
+                className="buy-now-btn"
+                onClick={(e) => handleBuyNow(e, product)}
+              >
+                <i className="bx bx-shopping-bag"></i> Buy Now
+              </button>
+            </div>
+          </div>
         </div>
-      </section>
+      );
+    })}
+  </div>
+</section>
+
+            
 
       <button className="scroll-to-top" onClick={scrollToTop}>↑</button>
 

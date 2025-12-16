@@ -13,57 +13,155 @@ function Xerox() {
 
   // Check authentication status when component mounts
   useEffect(() => {
-    // Use Firebase auth state to determine if user is logged in
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setIsLoggedIn(!!currentUser);
     });
-
-    // Clean up subscription on unmount
     return () => unsubscribe();
   }, []);
 
-  // Function to toggle preview modal
-  const togglePreview = (fileIndex, ratioType) => {
-    const key = `${fileIndex}-${ratioType}`;
-    setShowPreview(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
+  // Utility: canonical paper type names (used across UI & logic)
+  // Valid values: A4, A3, A2, A1, A0, photosheet, legalsheet, bondsheet, Certificate, Bonafide
 
-  // Function to close all previews when clicking outside
-  const closeAllPreviews = () => {
-    setShowPreview({});
-  };
+  // Return per-page price based on file options
+  const getPerPagePrice = (file) => {
+    const paper = file.paperType;
+    const printType = file.printType; // "color" or "black-white"
+    const format = file.format; // "Front Only" or "Front & Back"
+    const ratio = file.ratio; // "1:1" or "1:2"
+    const bindingType=file.bindingType;
 
-  const handleAuthenticatedFileUpload = (e) => {
-    if (e) e.preventDefault();
-    
-    if (!isLoggedIn) {
-      sessionStorage.setItem('redirectAfterLogin', '/xerox');
-      sessionStorage.setItem('loginMessage', 'Please log in to use our Xerox service');
-      navigate('/login');
-      return;
+    // A helper to pick between front/back pricing
+    if (paper === "A4") {
+      if (printType === "color") return 10.0;
+      // B&W A4
+      // Front Only single-side => ₹1.30 per page
+      // Front & Back uses same per-page logic but effective amount can be halved when ratio=1:2
+      if (format === "Front Only") return 1.30;
+      if (format === "Front & Back") return 0.75; // per page equivalent used in original mapping
+      return 1.30;
     }
-    
-    // If logged in, trigger the file input click
-    document.getElementById('file-upload-input').click();
+
+    if (paper === "A3") {
+      if (printType === "color") return 20.0;
+      // B&W
+      if (format === "Front Only") return 3.0;
+      if (format === "Front & Back") return 2.50;
+      return 3.0;
+    }
+
+    if (paper === "A2") {
+      if (printType === "color") return 120.0;
+      // B&W
+      // For large formats original mapping had Front Only = 60. We'll keep Front & Back unspecified (rare).
+      if (format === "Front Only" & ratio=="1:1") return 60.0;
+     
+      return 60.0;
+    }
+
+    if (paper === "A1") {
+      if (printType === "color") return 240.0;
+      if (format === "Front Only" & ratio=="1:1") return 120.0;
+      
+      return 120.0;
+    }
+
+    if (paper === "A0") {
+      if (printType === "color") return 450.0;
+      if (format === "Front Only" & ratio=="1:1") return 240.0;
+      
+      return 240.0;
+    }
+
+    if (paper === "photosheet") {
+      // Photosheet typically color only
+      if (printType === "color" & ratio=="1:1") return 20.0;
+      return 20.0;
+    }
+
+    if (paper === "legalsheet") {
+      if (printType === "color") return 15.0;
+      if (format === "Front Only") return 1.50;
+      if (format === "Front & Back") return 1.30; 
+      // B&W legal sheet
+      return 1.50;
+    }
+
+    if (paper === "bondsheet") {
+      if (printType === "color" & ratio=="1:1") return 10.0;
+      return 1.50;
+    }
+
+    if (paper === "Certificate") {
+      if (printType === "color" ) return 20.0;
+      return 20.0;
+    }
+
+    if (paper === "Bonafide") {
+      // Bonafide/OHP or other specialty paper
+      return 15.0;
+    }
+    if(bindingType==="none"){
+      return 0;
+    }
+    if(bindingType==="spiral"){
+      return 20;
+    }
+    if(bindingType==="ohp"){
+      return 20;
+    }
+    if(bindingType==="photosheet"){
+      return 40;
+    }
+    if(bindingType==="silver"){
+      return 150
+    }
+    // Default fallback
+    return 1.30;
   };
 
+  // Compute derived price fields for a file object (mutates a shallow copy)
+  const computeFilePricing = (file) => {
+  // Get base per-page price based on paper type, color, format, ratio
+  const perPage = getPerPagePrice(file);
+
+  // Calculate amount per quantity (before multiplying by quantity)
+  let amtPerQty = perPage * (file.totalPages || 1);
+
+  // Apply ratio adjustment if double-sided (1:2)
+  if (file.ratio === "1:2") {
+    amtPerQty = amtPerQty / 2;
+  }
+
+  // Initial final amount based on quantity
+  let finalAmount = amtPerQty * (file.quantity || 1);
+
+ 
+  // Return computed pricing
+  
+  return {
+    perPagePrice: perPage,
+    amountPerQuantity: amtPerQty,
+    finalAmount,
+  };
+};
+
+
+  // When new files are uploaded — read page count for PDFs and initialize pricing
   const handleFileUpload = async (event) => {
     // Make sure the user is logged in
     if (!isLoggedIn) {
-      sessionStorage.setItem('redirectAfterLogin', '/xerox');
-      sessionStorage.setItem('loginMessage', 'Please log in to use our Xerox service');
-      navigate('/login');
+      sessionStorage.setItem("redirectAfterLogin", "/xerox");
+      sessionStorage.setItem("loginMessage", "Please log in to use our Xerox service");
+      navigate("/login");
       return;
     }
 
-    const uploadedFiles = Array.from(event.target.files);
-    
-    // Log the files being uploaded for debugging
+    const uploadedFiles = Array.from(event.target.files || []);
+    if (uploadedFiles.length === 0) return;
+
+    // Debug
     console.log("Files being uploaded:", uploadedFiles);
-    
+
     const newFiles = await Promise.all(
       uploadedFiles.map(async (file) => {
         let totalPages = 1;
@@ -76,203 +174,208 @@ function Xerox() {
               reader.onerror = (error) => reject(error);
               reader.readAsArrayBuffer(file);
             });
-            
             const pdfDoc = await PDFDocument.load(pdfBytes);
             totalPages = pdfDoc.getPageCount();
             console.log(`PDF ${file.name} has ${totalPages} pages`);
           } catch (error) {
             console.error(`Error reading PDF ${file.name}:`, error);
-            totalPages = 1; // Default to 1 if we can't read the PDF
+            totalPages = 1;
           }
         }
 
-        // Calculate initial pricing when adding files
-        const perPagePrice = 1.30;
-        const amountPerQuantity = perPagePrice * totalPages;
-        
-        // Create a new file data object with all necessary fields
-        return {
-          file: file, // Store the actual File object
-          fileName: file.name, // Also store name separately in case File object gets lost
-          fileType: file.type, 
+        // default fields when adding
+        const baseFile = {
+          file: file,
+          fileName: file.name,
+          fileType: file.type,
           fileSize: file.size,
           paperType: "A4",
-          printType: "black-white",
+          printType: "black-white" || "color",
           ratio: "1:1",
           format: "Front Only",
           quantity: 1,
-          spiralBinding: false,
+          bindingType:"none",
           totalPages,
-          perPagePrice,
-          amountPerQuantity,
-          finalAmount: amountPerQuantity
+          perPagePrice: 0,
+          amountPerQuantity: 0,
+          finalAmount: 0,
+        };
+
+        // compute initial pricing using current defaults
+        const pricing = computeFilePricing(baseFile);
+
+        return {
+          ...baseFile,
+          perPagePrice: pricing.perPagePrice,
+          amountPerQuantity: pricing.amountPerQuantity,
+          finalAmount: pricing.finalAmount,
         };
       })
     );
-    
-    // Add new files to state
-    setFiles(prevFiles => [...prevFiles, ...newFiles]);
-    // Reset the file input value so the same file can be added again if needed
-    event.target.value = "";
+
+    setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+    if (event && event.target) event.target.value = "";
   };
 
-  // Calculate prices without modifying state
+  // Recompute grand total whenever files change
   useEffect(() => {
-    if (files.length === 0) return;
-    
-    let totalAmount = 0;
-    
-    files.forEach(fileData => {
-      // Calculate per page price
-      let perpage = 0;
-      
-      if (fileData.paperType === "A4") {
-        if (fileData.printType === "color") {
-          perpage = 10.0;
-        } else {
-          if (fileData.format === "Front Only" && fileData.ratio === "1:1") {
-            perpage = 1.30;
-          }
-          if (fileData.format === "Front & Back" && fileData.ratio === "1:2") {
-            perpage = 0.75;
-          }
-          if (fileData.format === "Front & Back" && fileData.ratio === "1:1") {
-            perpage = 0.75;
-          }
-          if (fileData.format === "Front Only" && fileData.ratio === "1:2") {
-            perpage = 1.30;
-          }
-        }
-      } else {
-        // For Bonafide/OHP paper
-        perpage = 15.0;
-      }
-      
-      // Calculate amount per quantity
-      let amtperqty = perpage * fileData.totalPages;
-      
-      // Apply 1:2 ratio discount if applicable
-      if (fileData.ratio === "1:2") {
-        amtperqty = amtperqty / 2;
-      }
-      
-      // Calculate final amount
-      let finalamount = amtperqty * fileData.quantity;
-      
-      // Add spiral binding cost if selected
-      if (fileData.spiralBinding) {
-        finalamount += 20.0 * fileData.quantity;
-      }
-      
-      totalAmount += finalamount;
-    });
-    
-    // Only update the total cost, not the files
-    setTotalCost(totalAmount);
-  }, [files]); // Keep files as dependency
-
-  // Create a separate function to recalculate a file when its properties change
-  const handleChange = (index, field, value) => {
-    const updatedFiles = [...files];
-    updatedFiles[index][field] = value;
-    
-    // Recalculate this specific file's pricing
-    const file = updatedFiles[index];
-    
-    // Calculate per page price
-    let perpage = 0;
-    
-    if (file.paperType === "A4") {
-      if (file.printType === "color") {
-        perpage = 10.0;
-      } else {
-        if (file.format === "Front Only" && file.ratio === "1:1") {
-          perpage = 1.30;
-        }
-        if (file.format === "Front & Back" && file.ratio === "1:2") {
-          perpage = 0.75;
-        }
-        if (file.format === "Front & Back" && file.ratio === "1:1") {
-          perpage = 0.75;
-        }
-        if (file.format === "Front Only" && file.ratio === "1:2") {
-          perpage = 1.30;
-        }
-      }
-    } else {
-      // For Bonafide/OHP paper
-      perpage = 15.0;
-    }
-    
-    file.perPagePrice = perpage;
-    
-    // Calculate amount per quantity
-    let amtperqty = perpage * file.totalPages;
-    
-    // Apply 1:2 ratio discount if applicable
-    if (file.ratio === "1:2") {
-      amtperqty = amtperqty / 2;
-    }
-    
-    file.amountPerQuantity = amtperqty;
-    
-    // Calculate final amount
-    let finalamount = amtperqty * file.quantity;
-    
-    // Add spiral binding cost if selected
-    if (file.spiralBinding) {
-      finalamount += 20.0 * file.quantity;
-    }
-    
-    file.finalAmount = finalamount;
-    
-    setFiles(updatedFiles);
-  };
-
-  const removeFile = (index) => {
-    const updatedFiles = [...files];
-    updatedFiles.splice(index, 1);
-    setFiles(updatedFiles);
-  };
-
-  const handleCheckout = () => {
-    // Check authentication before proceeding to checkout
-    if (!isLoggedIn) {
-      sessionStorage.setItem('redirectAfterLogin', '/xerox');
-      sessionStorage.setItem('loginMessage', 'Please log in to complete your order');
-      navigate('/login');
+    if (files.length === 0) {
+      setTotalCost(0);
       return;
     }
-    
-    // Create a copy of files without the File objects
-    const serializableFiles = files.map(fileData => {
-      // Create a new object with all properties except 'file'
-      const { fileName, fileType, fileSize, paperType, printType, ratio, format, quantity, 
-              spiralBinding, totalPages, perPagePrice, amountPerQuantity, finalAmount } = fileData;
-      
-      return {
-        fileName,
-        fileType, 
-        fileSize,
-        paperType,
-        printType,
-        ratio,
-        format,
-        quantity,
-        spiralBinding,
-        totalPages,
-        perPagePrice,
-        amountPerQuantity,
-        finalAmount
-      };
+    let totalAmount = 0;
+    files.forEach((f) => {
+      // ensure numeric
+      totalAmount += Number(f.finalAmount || 0);
     });
-    
-    // Store files in sessionStorage (better for larger data)
-    sessionStorage.setItem('serializableFiles', JSON.stringify(serializableFiles));
-    sessionStorage.setItem('totalCost', totalCost.toString());
-    
-    // Create a temporary object to hold File objects
-    const fileObjects = {};
+    setTotalCost(totalAmount);
+  }, [files]);
+
+  // Handle field changes for a specific file (index)
+  // field may be "paperType","printType","format","ratio","quantity","spiralBinding"
+const handleChange = (index, field, value) => {
+  const updatedFiles = [...files];
+  const file = { ...updatedFiles[index] };
+
+  if (field === "quantity") {
+    // Allow clearing field while typing
+    if (value === "") {
+      file.quantity = "";
+      updatedFiles[index] = file;
+      setFiles(updatedFiles);
+      return;
+    }
+
+    const num = Number(value);
+    file.quantity = isNaN(num)  ? 1 : num;
+  } 
+  else if (field === "bindingType") {
+    // ✅ correctly update bindingType
+    file.bindingType = value;
+  }
+  else if (field === "paperType") {
+    file.paperType = value;
+
+    // If black & white not allowed, force color
+    if (["Certificate", "photosheet"].includes(value)) {
+      file.printType = "color";
+    } else {
+      if (!file.printType) file.printType = "color";
+    }
+  } 
+  else if (field === "printType") {
+    file.printType = value || "color"; // default to color if undefined
+  } 
+  else {
+    file[field] = value;
+  }
+
+  if (file.quantity === "") {
+    updatedFiles[index] = file;
+    setFiles(updatedFiles);
+    return;
+  }
+
+  
+  // 🔹 Recalculate pricing
+  const pricing = computeFilePricing({
+    ...file,
+    quantity: Number(file.quantity) || 1,
+  });
+
+  // Apply binding price inside handleChange
+  const bindingPrices = {
+    none: 0,
+    spiral: 20,
+    ohp: 20,
+    photosheet: 40,
+    silver: 150,
+  };
+   
+
+
+  file.perPagePrice = pricing.perPagePrice;
+  file.amountPerQuantity = pricing.amountPerQuantity;
+
+  // Add binding cost to final amount
+  file.finalAmount = pricing.finalAmount + (bindingPrices[file.bindingType || "none"] || 0);
+
+  updatedFiles[index] = file;
+  setFiles(updatedFiles);
+};
+
+
+
+  const removeFile = (index) => {
+  const updatedFiles = [...files];
+  updatedFiles.splice(index, 1);
+  setFiles(updatedFiles);
+  };
+
+  const handleAuthenticatedFileUpload = (e) => {
+    if (e) e.preventDefault();
+
+    if (!isLoggedIn) {
+      sessionStorage.setItem("redirectAfterLogin", "/xerox");
+      sessionStorage.setItem("loginMessage", "Please log in to use our Xerox service");
+      navigate("/login");
+      return;
+    }
+
+    document.getElementById("file-upload-input").click();
+  };
+
+  // Make sure this is imported
+
+const handleCheckout = async () => {
+  if (!isLoggedIn) {
+    sessionStorage.setItem("redirectAfterLogin", "/xerox");
+    sessionStorage.setItem("loginMessage", "Please log in to complete your order");
+    navigate("/login");
+    return;
+  }
+
+  // 1️⃣ Prepare serializable files
+   const serializableFiles = files.map(fileData => {
+    const {
+      fileName,
+      fileType,
+      fileSize,
+      paperType,
+      printType,
+      ratio,
+      format,
+      quantity,
+      bindingType,
+      totalPages,
+      perPagePrice,
+      amountPerQuantity,
+      finalAmount
+    } = fileData;
+
+    return {
+      fileName,
+      fileType,
+      fileSize,
+      paperType,
+      printType,
+      ratio,
+      format,
+      quantity:Number(quantity) || 1,
+      bindingType : bindingType || "none",  // ✅ Store binding type
+      totalPages:Number(totalPages) || 1, 
+      perPagePrice: Number(perPagePrice) || 0,
+      amountPerQuantity:Number(amountPerQuantity) || 0,
+      finalAmount: Number(finalAmount) || 0
+    };
+  });
+
+  // 2️⃣ Store in sessionStorage (optional)
+  sessionStorage.setItem("serializableFiles", JSON.stringify(serializableFiles));
+  sessionStorage.setItem("totalCost", totalCost.toString());
+
+  // 3️⃣ Save to Firebase Realtime Database
+  const fileObjects = {};
     files.forEach((fileData, index) => {
       // Store each File object with an index key
       fileObjects[index] = fileData.file;
@@ -285,7 +388,21 @@ function Xerox() {
     navigate('/confirm-order');
   };
 
-  // Component to render preview modal
+
+  // Toggle preview modal
+  const togglePreview = (fileIndex, ratioType) => {
+    const key = `${fileIndex}-${ratioType}`;
+    setShowPreview((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const closeAllPreviews = () => {
+    setShowPreview({});
+  };
+
+  // Preview modal component (unchanged)
   const PreviewModal = ({ isOpen, onClose, ratioType, fileIndex }) => {
     if (!isOpen) return null;
 
@@ -295,23 +412,22 @@ function Xerox() {
           <div className="preview-content">
             <h3>1:1 Ratio (Single Side Printing)</h3>
             <div className="preview-image-container">
-              <img 
-                src="/onebyone.png" 
-                alt="1:1 Ratio - Single Side Printing" 
+              <img
+                src="/onebyone.png"
+                alt="1:1 Ratio - Single Side Printing"
                 className="ratio-preview-image"
                 onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
+                  e.target.style.display = "none";
+                  e.target.nextSibling.style.display = "block";
                 }}
               />
-              <div className="image-fallback" style={{ display: 'none' }}>
+              <div className="image-fallback" style={{ display: "none" }}>
                 <div className="fallback-text">📄 Single Side Printing</div>
                 <div className="fallback-description">Image not available</div>
               </div>
             </div>
             <p className="preview-description">
-              Each page of your document is printed on one side of the paper. 
-              For a 2-page document, you'll get 2 sheets of paper.
+              Each page of your document is printed on one side of the paper.
             </p>
             <div className="pricing-info">
               <strong>A4 B&W: ₹1.30 per page</strong>
@@ -323,23 +439,22 @@ function Xerox() {
           <div className="preview-content">
             <h3>1:2 Ratio (Double Side Printing)</h3>
             <div className="preview-image-container">
-              <img 
-                src="/onebytwo.png" 
-                alt="1:2 Ratio - Double Side Printing" 
+              <img
+                src="/onebytwo.png"
+                alt="1:2 Ratio - Double Side Printing"
                 className="ratio-preview-image"
                 onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
+                  e.target.style.display = "none";
+                  e.target.nextSibling.style.display = "block";
                 }}
               />
-              <div className="image-fallback" style={{ display: 'none' }}>
+              <div className="image-fallback" style={{ display: "none" }}>
                 <div className="fallback-text">📄 Double Side Printing</div>
                 <div className="fallback-description">Image not available</div>
               </div>
             </div>
             <p className="preview-description">
-              Two pages of your document are printed on both sides of one sheet. 
-              For a 2-page document, you'll get 1 sheet of paper (front & back).
+              Two pages of your document are printed on both sides of one sheet.
             </p>
             <div className="pricing-info">
               <strong>A4 B&W: ₹0.75 per page (50% savings!)</strong>
@@ -352,14 +467,16 @@ function Xerox() {
     return (
       <div className="preview-modal-overlay" onClick={onClose}>
         <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
-          <button className="preview-close-btn" onClick={onClose}>×</button>
+          <button className="preview-close-btn" onClick={onClose}>
+            ×
+          </button>
           {getPreviewContent()}
         </div>
       </div>
     );
   };
 
-  // Empty state UI when no files are selected
+  // Empty state UI
   const renderEmptyState = () => (
     <div className="empty-statexerox">
       <div className="empty-state-iconxerox">
@@ -399,7 +516,6 @@ function Xerox() {
           display:"flex",
           justifyContent:"center",
           alignItems:"center",
-          
         }}>Price List</h3>
         <div className="price-listxerox">
           <div className="price-list-itemxerox">
@@ -424,7 +540,7 @@ function Xerox() {
           </div>
         </div>
       </div>
-      <button 
+      <button
         className="file-upload-buttonxerox"
         onClick={(e) => handleAuthenticatedFileUpload(e)}
       >
@@ -447,12 +563,10 @@ function Xerox() {
       <h1 className="xerox-titlexerox">Xerox Printing Service</h1>
 
       {files.length === 0 ? (
-        // Show empty state when no files are uploaded
         renderEmptyState()
       ) : (
-        // Show file upload button when files exist
         <div>
-          <button 
+          <button
             className="file-uploadxerox"
             onClick={(e) => handleAuthenticatedFileUpload(e)}
           >
@@ -473,8 +587,8 @@ function Xerox() {
       {files.map((fileData, index) => (
         <div key={index} className="file-containerxerox">
           <div className="file-headerxerox">
-            <h3 className="file-header-titlexerox">{fileData.file.name} ({fileData.totalPages} pages)</h3>
-            <button 
+            <h3 className="file-header-titlexerox">{fileData.fileName} ({fileData.totalPages} pages)</h3>
+            <button
               className="remove-file-buttonxerox"
               onClick={() => removeFile(index)}
             >
@@ -491,6 +605,14 @@ function Xerox() {
                 onChange={(e) => handleChange(index, "paperType", e.target.value)}
               >
                 <option value="A4">A4 Paper</option>
+                <option value="A3">A3 Paper</option>
+                <option value="A2">A2 Paper</option>
+                <option value="A1">A1 Paper</option>
+                <option value="A0">A0 Paper</option>
+                <option value="photosheet">Photo Sheet</option>
+                <option value="legalsheet">Legal Sheet</option>
+                <option value="bondsheet">Bond Sheet</option>
+                <option value="Certificate">Certificate</option>
                 <option value="Bonafide">Bonafide Paper</option>
               </select>
             </div>
@@ -499,11 +621,14 @@ function Xerox() {
               <label className="select-labelxerox">Color</label>
               <select
                 className="select-inputxerox"
-                value={fileData.printType}
+                value={fileData.printType || "color"}
                 onChange={(e) => handleChange(index, "printType", e.target.value)}
               >
-                <option value="black-white">Black & White</option>
                 <option value="color">Gradient/Color</option>
+                {!([  "Certificate","photosheet"].includes(fileData.paperType)) && (
+                <option value="black-white">Black & White</option>
+              )}
+                
               </select>
             </div>
 
@@ -515,7 +640,9 @@ function Xerox() {
                 onChange={(e) => handleChange(index, "format", e.target.value)}
               >
                 <option value="Front Only">Front Only</option>
-                <option value="Front & Back">Front & Back</option>
+                {!(["A0", "A1", "A2", "photosheet","Certificate","bondsheet"].includes(fileData.paperType)) && (
+               <option value="Front & Back">Front & Back</option>
+              )}
               </select>
             </div>
 
@@ -528,7 +655,9 @@ function Xerox() {
                   onChange={(e) => handleChange(index, "ratio", e.target.value)}
                 >
                   <option value="1:1">1:1 (Single Side)</option>
+                   {!(["A0", "A1", "A2", "photosheet","Certificate","bondsheet"].includes(fileData.paperType)) && (
                   <option value="1:2">1:2 (Double Side)</option>
+                  )}
                 </select>
                 <div className="ratio-preview-buttons">
                   <button
@@ -554,41 +683,52 @@ function Xerox() {
             <div className="select-containerxerox">
               <label className="select-labelxerox">Quantity</label>
               <input
-                type="number"
-                className="select-inputxerox"
-                min="1"
-                value={fileData.quantity}
-                onChange={(e) => handleChange(index, "quantity", parseInt(e.target.value))}
-              />
+               type="number"
+               className="select-inputxerox"
+               min="1"
+               value={fileData.quantity}
+               onChange={(e) => handleChange(index, "quantity", e.target.value)}
+               onBlur={(e) => {
+                if (e.target.value === "" || Number(e.target.value) < 1) {
+                handleChange(index, "quantity", 1);
+              }
+            }}
+         />
             </div>
+            <div className="select-containerxerox">
+        <label className="select-labelxerox">Binding Type</label>
+        <select
+          className="select-inputxerox"
+          value={fileData.bindingType || "none"}
+          onChange={(e) => handleChange(index, "bindingType", e.target.value)}
+        >
+          <option value="none">No Binding</option>
+          <option value="spiral">Spiral Binding (₹20)</option>
+          <option value="ohp">OHP Binding (₹20)</option>
+          <option value="photosheet">Photosheet Binding (₹40)</option>
+          <option value="silver">Silver Binding (₹150)</option>
+        </select>
+      </div>
+    
 
-            <div className="checkbox-containerxerox">
-              <input
-                type="checkbox"
-                className="checkbox-inputxerox"
-                checked={fileData.spiralBinding}
-                onChange={() => handleChange(index, "spiralBinding", !fileData.spiralBinding)}
-              />
-              <label className="checkbox-labelxerox">Include Spiral Binding (₹20)</label>
-            </div>
+
           </div>
 
           <div className="price-infoxerox">
             <div className="price-itemxerox">
               <span className="price-labelxerox">Price per page:</span>
-              <span className="price-valuexerox">₹{fileData.perPagePrice.toFixed(2)}</span>
+              <span className="price-valuexerox">₹{Number(fileData.perPagePrice || 0).toFixed(2)}</span>
             </div>
             <div className="price-itemxerox">
               <span className="price-labelxerox">Amount per copy:</span>
-              <span className="price-valuexerox">₹{fileData.amountPerQuantity.toFixed(2)}</span>
+              <span className="price-valuexerox">₹{Number(fileData.amountPerQuantity || 0).toFixed(2)}</span>
             </div>
             <div className="price-itemxerox totalxerox">
               <span className="price-labelxerox">Final amount:</span>
-              <span className="price-valuexerox">₹{fileData.finalAmount.toFixed(2)}</span>
+              <span className="price-valuexerox">₹{Number(fileData.finalAmount || 0).toFixed(2)}</span>
             </div>
           </div>
 
-          {/* Preview Modals for this file */}
           <PreviewModal
             isOpen={showPreview[`${index}-1:1`]}
             onClose={() => togglePreview(index, "1:1")}
@@ -612,8 +752,8 @@ function Xerox() {
               <span className="grand-total-valuexerox">₹{totalCost.toFixed(2)}</span>
             </div>
           </div>
-          
-          <button 
+
+          <button
             className="checkout-buttonxerox"
             onClick={handleCheckout}
           >
@@ -622,10 +762,9 @@ function Xerox() {
         </div>
       )}
 
-      {/* Global backdrop for closing all previews */}
       {Object.values(showPreview).some(Boolean) && (
-        <div 
-          className="global-backdrop" 
+        <div
+          className="global-backdrop"
           onClick={closeAllPreviews}
           style={{
             position: 'fixed',
@@ -640,8 +779,8 @@ function Xerox() {
         />
       )}
 
-      <style jsx>{`
-        .ratio-select-with-preview {
+       <style jsx>{`
+       .ratio-select-with-preview {
           display: flex;
           align-items: center;
           gap: 8px;
@@ -653,7 +792,7 @@ function Xerox() {
           gap: 4px;
         }
 
-        .preview-eye-btn {
+       .preview-eye-btn {
           background: none;
           border: 1px solid #ddd;
           border-radius: 4px;
@@ -791,8 +930,8 @@ function Xerox() {
             margin: 10px;
             padding: 20px;
           }
-        }
-      `}</style>
+        }`}
+       </style>
     </div>
   );
 }

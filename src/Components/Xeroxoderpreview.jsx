@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAuth } from 'firebase/auth';
-import { getDatabase, ref, get } from 'firebase/database';
+import { getDatabase, ref, get, update } from 'firebase/database';
 import '../css/Xeroxorderpreview.css';
 
 function Xeroxorderpreview() {
@@ -12,10 +12,14 @@ function Xeroxorderpreview() {
     paid: false,
     delivered: false,
     address: '',
+    city:'',
+    phoneNumber:'',
+    pincode:'',
     deliveryTime: '' // Added deliveryTime field
   });
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  
 
   const auth = getAuth();
   const database = getDatabase();
@@ -50,6 +54,9 @@ function Xeroxorderpreview() {
           paid: false,
           delivered: false,
           address: '',
+          city:'',
+          phoneNumber:'',
+          pincode:'',
           deliveryTime: '' // Initialize deliveryTime
         });
         
@@ -64,10 +71,16 @@ function Xeroxorderpreview() {
         const uploadScreenshotsSnapshot = await get(uploadScreenshotsRef);
         
         let address = '';
+        let city = '';
+        let phoneNumber= '';
+        let pincode='';
         let deliveryTime = ''; // Added deliveryTime variable
         if (uploadScreenshotsSnapshot.exists()) {
           const screenshotData = uploadScreenshotsSnapshot.val();
           address = screenshotData.address || '';
+          city = screenshotData.city || '';
+          phoneNumber = screenshotData.phoneNumber || '';
+          pincode = screenshotData.pincode || '';
           deliveryTime = screenshotData.deliveryTime || 'Not specified'; // Get deliveryTime
         }
         
@@ -81,7 +94,7 @@ function Xeroxorderpreview() {
             // Save the first file data to extract common order details
             if (!firstFile) {
               firstFile = fileData;
-              
+            
               // Update order details from first file
               setOrderDetails({
                 orderId,
@@ -90,10 +103,15 @@ function Xeroxorderpreview() {
                 deliveryAmount: fileData.deliveyamt0 || 'Free',
                 paid: fileData.paid || false,
                 delivered: fileData.delivered || false,
+                cancelled: fileData.cancelled || false,
                 address: address, // Set the address from uploadscreenshots
+                city: city,
+                phoneNumber: phoneNumber,
+                pincode: pincode,
                 deliveryTime: deliveryTime // Set the delivery time from uploadscreenshots
               });
             }
+            
             
             filesList.push({
               id: fileSnapshot.key,
@@ -109,7 +127,7 @@ function Xeroxorderpreview() {
               finalAmount: fileData.finalamt0 || 0,
               uploadTime: fileData.uploadTime || 0,
               notes: fileData.notes || '',
-              spiral: fileData.spiral || false
+              bindingType: fileData.bindingType || false
             });
           });
         }
@@ -136,6 +154,7 @@ function Xeroxorderpreview() {
   };
   
  
+
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
     const date = new Date(timestamp);
@@ -174,7 +193,10 @@ function Xeroxorderpreview() {
             </span>
           </div>
           <div className="order-detail-item address-item">
-            <span>Delivery Address:</span> {orderDetails.address || 'Not provided'}
+            <span>Delivery Address:</span> 
+            {orderDetails.address || 'Not provided'},<br></br>
+            {orderDetails.city || 'Not provided'},<br></br>
+            {orderDetails.pincode || 'Not provided'}<br></br>
           </div>
           {/* Added Delivery Time Display */}
           <div className="order-detail-item delivery-time-item">
@@ -222,7 +244,9 @@ function Xeroxorderpreview() {
                       <span>Amount:</span> ₹{file.finalAmount}
                     </div>
                     <div className="detail-item">
-                      <span>Spiral Binding:</span> {file.spiral ? "Yes" : "No"}
+                      <span> Binding:</span> {file.bindingType && file.bindingType !== 'none'
+                      ? file.bindingType.charAt(0).toUpperCase() + file.bindingType.slice(1)
+                      : "No"}
                     </div>
                   </div>
                   

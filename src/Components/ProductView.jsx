@@ -4,9 +4,9 @@ import { database, auth } from "./firebase";
 import { ref, push, set, onValue } from "firebase/database";
 import "../css/ProductView.css";
 
-// Image ID mapping
+// Image ID mapping (keep your mapping)
 const IMAGE_ID_MAPPING = {
-    "2131230840": "about_us.png",
+  "2131230840": "about_us.png",
   "2131230841": "afoursheet.png",
   "2131230842": "athreenote.png",
   "2131230843": "athreenotee.jpg",
@@ -148,21 +148,104 @@ const IMAGE_ID_MAPPING = {
 function ProductView() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [currentProduct, setCurrentProduct] = useState(location.state?.product || null);
+
+  // product passed via location.state or null
+  const rawLocationProduct = location.state?.product || null;
+
+  const [currentProduct, setCurrentProduct] = useState(null);
   const [dynamicProducts, setDynamicProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [cartItems, setCartItems] = useState([]);
-  const [cartCount, setCartCount] = useState(0);
   const [isInCart, setIsInCart] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [showCartPreview, setShowCartPreview] = useState(false);
 
-  // Auth listener & cart
+  // Normalize a product record to consistent fields
+  const normalizeProduct = (p = {}) => {
+    const copy = { ...(p || {}) };
+
+    // price detection
+    let priceNum = 0;
+    if (typeof copy.price === "number") priceNum = copy.price;
+    else if (typeof copy.price === "string") priceNum = parseFloat(copy.price.replace(/[^\d.]/g, "")) || 0;
+    else if (typeof copy.productamt === "string") priceNum = parseFloat(copy.productamt.replace(/[^\d.]/g, "")) || 0;
+    else priceNum = Number(copy.productamt) || 0;
+
+    // discount detection (database might store percent like 5)
+    // interpretation rules:
+    // - if discount is numeric and between 0 and 100 => treat as percent (5 => 5%)
+    // - if numeric and greater than 100 => treat as absolute discounted price candidate (rare)
+    // - if string with '%' => parse percent
+    let discountRaw = copy.discount ?? copy.discountPercent ?? copy.discountamt ?? null;
+    let discountPercent = null;
+    let discountPriceValue = null;
+
+    if (discountRaw != null) {
+      const dStr = String(discountRaw).trim();
+      if (dStr.includes("%")) {
+        discountPercent = parseFloat(dStr.replace(/[^\d.]/g, "")) || 0;
+      } else {
+        const dNum = parseFloat(dStr.replace(/[^\d.]/g, "")) || 0;
+        if (dNum > 0 && dNum <= 100) {
+          discountPercent = dNum; // percent
+        } else if (dNum > 100 && dNum < priceNum) {
+          // weird case — maybe they stored discounted absolute price
+          discountPriceValue = dNum;
+        } else if (dNum > 0 && priceNum > 0 && dNum < priceNum) {
+          // treat as discounted absolute price
+          discountPriceValue = dNum;
+        }
+      }
+    }
+
+    // compute final discount price if percent known
+    if (discountPercent != null && priceNum && discountPercent > 0 && discountPercent <= 100) {
+      discountPriceValue = +(priceNum - (priceNum * discountPercent) / 100).toFixed(2);
+    }
+
+    // strings for UI
+    const priceStr = `₹${Number(priceNum).toFixed(2).replace(/\.00$/, "")}`;
+    const discountPriceStr = discountPriceValue ? `₹${Number(discountPriceValue).toFixed(2).replace(/\.00$/, "")}` : null;
+
+    const img = copy.imageUrl || copy.img || copy.productimage || copy.productimageurl || "";
+
+    return {
+      id: copy.id || copy.key || copy.productid || null,
+      name: copy.name || copy.productname || "Unnamed product",
+      brand: copy.brand || copy.manufacturer || "Unknown",
+      description: copy.description || copy.discription || copy.productdesc || "",
+      priceValue: Number(priceNum) || 0,
+      price: priceStr,
+      discountPercent: discountPercent || 0,
+      discountPriceValue: discountPriceValue || null,
+      discountPrice: discountPriceStr,
+      img,
+      raw: copy,
+    };
+  };
+
+  // Resolve image path / mapping
+  const getImagePath = (img) => {
+    if (!img) return "/unknowenprofile.png";
+    try {
+      if (typeof img !== "string") return "/unknowenprofile.png";
+      if (img.startsWith("/") || img.startsWith("http")) return img;
+      if (/^\d+$/.test(img) && IMAGE_ID_MAPPING[img]) return `/${IMAGE_ID_MAPPING[img]}`;
+      if (/\.(png|jpe?g|webp|gif)$/i.test(img)) return `/${img}`;
+      const found = Object.entries(IMAGE_ID_MAPPING).find(([k, v]) => v === img);
+      if (found) return `/${found[1]}`;
+      return "/unknowenprofile.png";
+    } catch (err) {
+      return "/unknowenprofile.png";
+    }
+  };
+
+  // Auth & cart listener
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
+    const unsub = auth.onAuthStateChanged(user => {
       setCurrentUser(user);
       if (user) {
         const cartRef = ref(database, `userscart/${user.uid}`);
@@ -170,33 +253,54 @@ function ProductView() {
           const data = snapshot.val();
           const items = data ? Object.values(data) : [];
           setCartItems(items);
-          setCartCount(items.length);
-          if (currentProduct) {
-            setIsInCart(items.some(item => item.productname === currentProduct.name));
-          }
+          if (currentProduct) setIsInCart(items.some(it => it.productname === currentProduct.name));
         });
+      } else {
+        setCartItems([]);
       }
     });
-    return () => unsubscribe();
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentProduct]);
 
-  // Fetch products dynamically
+  // Load dynamic products
   useEffect(() => {
     const productsRef = ref(database, "products");
-    onValue(productsRef, snapshot => {
-      const data = snapshot.val();
-      const items = data ? Object.values(data) : [];
-      setDynamicProducts(items.map(item => ({
-        id: item.id,
-        name: item.name,
-        brand: item.brand,
-        price: item.price,
-        description: item.description,
-        img: item.imageUrl
-      })));
+    const unsub = onValue(productsRef, snapshot => {
+      const data = snapshot.val() || {};
+      const arr = Object.entries(data).map(([k, v]) => ({ id: k, ...v }));
+      const normalized = arr.map(normalizeProduct);
+      setDynamicProducts(normalized);
+      setLoading(false);
+
+      // if product came via location.state -> set normalized instance
+      if (rawLocationProduct && !currentProduct) {
+        const normalizedFromLocation = normalizeProduct(rawLocationProduct);
+        setCurrentProduct(normalizedFromLocation);
+      } else if (!currentProduct && normalized.length > 0) {
+        setCurrentProduct(normalized[0]);
+      }
+    }, err => {
+      console.error("products onValue error:", err);
       setLoading(false);
     });
+
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // react to location product if dynamic list loads later
+  useEffect(() => {
+    if (rawLocationProduct && dynamicProducts.length > 0) {
+      const match = dynamicProducts.find(d => {
+        if (!rawLocationProduct) return false;
+        return (rawLocationProduct.id && d.id === rawLocationProduct.id) || (rawLocationProduct.name && d.name === rawLocationProduct.name);
+      });
+      if (match) setCurrentProduct(match);
+      else setCurrentProduct(normalizeProduct(rawLocationProduct));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawLocationProduct, dynamicProducts]);
 
   const showNotification = (message) => {
     setToastMessage(message);
@@ -204,14 +308,8 @@ function ProductView() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const getImagePath = (img) => {
-    if (!img) return "/unknowenprofile.png";
-    if (img.startsWith("/") || img.startsWith("http")) return img;
-    const entry = Object.entries(IMAGE_ID_MAPPING).find(([_, val]) => val === img);
-    return entry ? `/${entry[1]}` : "/unknowenprofile.png";
-  };
-
   const checkIfProductInCart = (product) => {
+    if (!product) return false;
     return cartItems.some(item => item.productname === product.name);
   };
 
@@ -220,48 +318,59 @@ function ProductView() {
       navigate("/login");
       return;
     }
+    if (!productToAdd) return;
+
     if (checkIfProductInCart(productToAdd)) {
       showNotification(`${productToAdd.name} is already in your cart!`);
       return;
     }
+
     const cartRef = ref(database, `userscart/${currentUser.uid}`);
     const newItemRef = push(cartRef);
+
+    // choose price to save: discountPriceValue if present else priceValue
+    const priceToSave = (productToAdd.discountPriceValue && productToAdd.discountPriceValue > 0)
+      ? productToAdd.discountPriceValue
+      : productToAdd.priceValue;
+
     const itemData = {
       key: newItemRef.key,
       productname: productToAdd.name,
-      productamt: productToAdd.price.replace("₹", ""),
+      productamt: String(priceToSave),
       productimage: productToAdd.img,
       qty,
-      rating: 0,
-      discription: productToAdd.description || `Brand: ${productToAdd.brand}`
+      rating: productToAdd.raw?.rating || 0,
+      discription: productToAdd.description || `Brand: ${productToAdd.brand}`,
     };
-    set(newItemRef, itemData).then(() => {
-      showNotification(`${productToAdd.name} added to cart!`);
-      setShowCartPreview(true);
-      setTimeout(() => setShowCartPreview(false), 5000);
-      setIsInCart(true);
-    }).catch(err => {
-      console.error(err);
-      alert("Failed to add to cart");
-    });
+
+    set(newItemRef, itemData)
+      .then(() => {
+        showNotification(`${productToAdd.name} added to cart!`);
+        setShowCartPreview(true);
+        setTimeout(() => setShowCartPreview(false), 4500);
+        setIsInCart(true);
+      })
+      .catch(err => {
+        console.error("addToCart error:", err);
+        alert("Failed to add to cart");
+      });
   };
 
   const goToCart = () => navigate("/cart");
 
   const relatedProducts = () => {
+    if (!currentProduct) return [];
     const sameBrand = dynamicProducts.filter(item => item.id !== currentProduct.id && item.brand === currentProduct.brand);
-    const others = dynamicProducts.filter(item => item.id !== currentProduct.id && !sameBrand.includes(item));
+    const others = dynamicProducts.filter(item => item.id !== currentProduct.id && item.brand !== currentProduct.brand);
     return [...sameBrand, ...others].slice(0, 3);
   };
 
-  if (!currentProduct) {
-    return (
-      <div className="product-not-found section-p1">
-        <h2>Product not found</h2>
-        <button className="normal" onClick={() => navigate("/")}>Return to Shop</button>
-      </div>
-    );
+  if (loading || !currentProduct) {
+    return <div className="section-p1"><h2>Loading product...</h2></div>;
   }
+
+  // debug:
+  // console.log("CurrentProduct:", currentProduct);
 
   return (
     <div>
@@ -270,6 +379,8 @@ function ProductView() {
         <i className={`bx ${toastMessage.includes("already") ? "bx-info-circle" : "bx-check-circle"}`}></i>
         <span>{toastMessage}</span>
       </div>
+
+      {/* Cart preview */}
       {showCartPreview && (
         <div className="cart-preview-overlay">
           <div className="cart-preview">
@@ -297,28 +408,45 @@ function ProductView() {
           </div>
         </div>
       )}
+
       {/* Product Details */}
       <section id="prodetails" className="section-p1">
         <div className="single-pro-image">
-          <img src={getImagePath(currentProduct.img)} alt={currentProduct.name} width="100%" />
+          <img src={getImagePath(currentProduct.img)} alt={currentProduct.name} width="100%" onError={(e)=>{e.target.onerror=null;e.target.src="/unknowenprofile.png"}} />
           <div className="small-img-group">
             {[...Array(4)].map((_, idx) => (
               <div className="small-img-col" key={idx}>
-                <img src={getImagePath(currentProduct.img)} alt="Thumbnail" className="small-img" />
+                <img src={getImagePath(currentProduct.img)} alt="Thumbnail" className="small-img" onError={(e)=>{e.target.onerror=null;e.target.src="/unknowenprofile.png"}} />
               </div>
             ))}
           </div>
         </div>
+
         <div className="single-pro-details">
           <h6>Home / {currentProduct.brand}</h6>
           <h4>{currentProduct.name}</h4>
-          <div className="price-container"><h3>{currentProduct.price}</h3></div>
+
+          <div className="price-container">
+            {currentProduct.discountPriceValue ? (
+              <div className="price-row">
+                <span className="old-price">{currentProduct.price}</span>
+                <span className="new-price">{currentProduct.discountPrice}</span>
+                {currentProduct.discountPercent > 0 && (
+                  <span className="discount-badge">{currentProduct.discountPercent}% OFF</span>
+                )}
+              </div>
+            ) : (
+              <h3 className="single-price">{currentProduct.price}</h3>
+            )}
+          </div>
+
           <div className="add-to-cart-container">
             <div className="quantity-controls">
               <button onClick={() => setQuantity(q => q > 1 ? q - 1 : 1)} disabled={isInCart}>-</button>
-              <input type="number" value={quantity} min="1" onChange={e => setQuantity(Number(e.target.value))} disabled={isInCart}/>
+              <input type="number" value={quantity} min="1" onChange={e => setQuantity(Number(e.target.value || 1))} disabled={isInCart}/>
               <button onClick={() => setQuantity(q => q + 1)} disabled={isInCart}>+</button>
             </div>
+
             {isInCart ? (
               <button className="normal in-cart-btn" onClick={goToCart}>
                 <i className="bx bx-check"></i> Already in Cart
@@ -329,6 +457,7 @@ function ProductView() {
               </button>
             )}
           </div>
+
           <div className="product-info">
             <h4>Product Details</h4>
             <span>{currentProduct.description || "No description available"}</span>
@@ -351,13 +480,24 @@ function ProductView() {
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
             >
-              <img src={getImagePath(item.img)} alt={item.name} />
+              <img src={getImagePath(item.img)} alt={item.name} onError={(e)=>{e.target.onerror=null;e.target.src="/unknowenprofile.png"}} />
               <div className="des">
                 <span>{item.brand}</span>
                 <h5>{item.name}</h5>
-                
-                <div className="price-tag"><h4>{item.price}</h4></div>
+
+                <div className="price-tag">
+                  {item.discountPriceValue ? (
+                    <h4>
+                      <span className="old-price">{item.price}</span>{" "}
+                      <span className="new-price">{item.discountPrice}</span>
+                      {item.discountPercent > 0 && <span className="discount-badge small">{item.discountPercent}% OFF</span>}
+                    </h4>
+                  ) : (
+                    <h4>{item.price}</h4>
+                  )}
+                </div>
               </div>
+
               {checkIfProductInCart(item) ? (
                 <a href="#" onClick={e => { e.preventDefault(); showNotification(`${item.name} is already in your cart!`); }}>
                   <i className="bx bx-check cart-added"></i>
@@ -387,7 +527,7 @@ function ProductView() {
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
             >
-              <img src={getImagePath(item.img)} alt={item.name} />
+              <img src={getImagePath(item.img)} alt={item.name} onError={(e)=>{e.target.onerror=null;e.target.src="/unknowenprofile.png"}} />
               <div className="des">
                 <span>{item.brand}</span>
                 <h5>{item.name}</h5>
@@ -407,18 +547,13 @@ function ProductView() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Footer left unchanged */}
       <footer className="footer">
         <div className="footer-container">
           <div className="footer-col about">
             <h3>Jasa Essential</h3>
-            <p>
-              Your trusted partner for quality stationery products for students and professionals.
-              We offer a wide range of supplies at competitive prices.
-            </p>
-            <div className="social-icons">
-              <a href="#"><i className="bx bxl-instagram"></i></a>
-            </div>
+            <p>Your trusted partner for quality stationery products for students and professionals. We offer a wide range of supplies at competitive prices.</p>
+            <div className="social-icons"><a href="#"><i className="bx bxl-instagram"></i></a></div>
           </div>
           <div className="footer-col">
             <h4>Quick Links</h4>

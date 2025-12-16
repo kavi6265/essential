@@ -16,7 +16,9 @@ function XeroxOrderpreviewtempadmin() {
     delivered: false,
     address: '',
     userId: '',
+    city: '',
     phoneNumber: '',
+    pincode: '',
     deliveryTime: '' // Added deliveryTime field
   });
   const [files, setFiles] = useState([]);
@@ -60,7 +62,9 @@ function XeroxOrderpreviewtempadmin() {
           delivered: false,
           address: '',
           userId: userId || '',
+          city: '',
           phoneNumber: '',
+          pincode: '',
           deliveryTime: '' // Initialize deliveryTime
         });
         
@@ -81,13 +85,19 @@ function XeroxOrderpreviewtempadmin() {
           
           // FIX: Correctly fetch address and deliveryTime from uploadscreenshots reference
           let address = '';
+          let city ='';
+          let pincode ='';
           let deliveryTime = ''; // Added deliveryTime variable
+          
+          
           const uploadScreenshotsRef = ref(database, `uploadscreenshots/${orderId}`);
           const uploadScreenshotsSnapshot = await get(uploadScreenshotsRef);
           
           if (uploadScreenshotsSnapshot.exists()) {
             const screenshotData = uploadScreenshotsSnapshot.val();
             address = screenshotData.address || '';
+            city = screenshotData.city || '';
+            pincode = screenshotData.pincode || '';
             deliveryTime = screenshotData.deliveryTime || 'Not specified'; // Get deliveryTime
           }
           
@@ -124,7 +134,9 @@ function XeroxOrderpreviewtempadmin() {
                   delivered: fileData.delivered || false,
                   address: address, // Set the address we fetched
                   userId: userId || '',
+                  city: city,
                   phoneNumber: phoneNumber, // Add the phone number
+                  pincode: pincode,
                   deliveryTime: deliveryTime // Add the delivery time
                 });
               }
@@ -143,7 +155,7 @@ function XeroxOrderpreviewtempadmin() {
                 finalAmount: fileData.finalamt0 || 0,
                 uploadTime: fileData.uploadTime || 0,
                 notes: fileData.notes || '',
-                spiral: fileData.spiral || false
+                bindingType: fileData.bindingType || "none"
               });
             });
           }
@@ -336,6 +348,8 @@ function XeroxOrderpreviewtempadmin() {
             <div className="order-detail-itemi address-itemi">
               <span className="detail-labeli">Delivery Address:</span> 
               <span className="detail-valuei addressi">{orderDetails.address || 'Not provided'}</span>
+              <span className="detail-valuei addressi">{orderDetails.city || 'Not provided'}</span>
+              <span className="detail-valuei addressi">{orderDetails.pincode || 'Not provided'}</span>
             </div>
             
             {/* Added Delivery Time Display */}
@@ -422,8 +436,10 @@ function XeroxOrderpreviewtempadmin() {
                     </div>
                     
                     <div className="detail-itemi">
-                      <span className="detail-labeli">Spiral Binding:</span> 
-                      <span className="detail-valuei">{file.spiral ? "Yes" : "No"}</span>
+                      <span className="detail-labeli">Binding:</span> 
+                      <span className="detail-valuei">{file.bindingType && file.bindingType !== 'none'
+                      ? file.bindingType.charAt(0).toUpperCase() + file.bindingType.slice(1)
+                      : "No"}</span>
                     </div>
                   </div>
                   

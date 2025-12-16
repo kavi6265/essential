@@ -8,6 +8,35 @@
   min-height: 100vh;
 }
 
+
+.address-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f8f8;
+  border-radius: 8px;
+}
+
+.address-section h2 {
+  margin-bottom: 10px;
+}
+
+.address-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.address-fields input {
+  padding: 10px;
+  border: 1px solid #ccc;
+  color: #18191a;
+  background-color: #e8f0fe;
+  
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+
 /* Header styling */
 .header {
   display: flex;

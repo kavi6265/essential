@@ -365,3 +365,28 @@
     padding: 6px;
   }
 }
+.cancel-button {
+  background-color: #ff4d4f;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.cancel-button:hover {
+  background-color: #d9363e;
+}
+
+.cancel-disabled-msg {
+  color: #777;
+  font-style: italic;
+  margin-top: 10px;
+}
+
+.status-badge.cancelled {
+  background-color: #f87171;
+  color: white;
+}

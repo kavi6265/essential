@@ -69,7 +69,9 @@ function Admin() {
                   <li><Link to="/admin/tempadmincontrol" className={getActiveClass("/admin/tempadmincontrol")}><i className="bx bx-user-check"></i><span>Admin Control</span></Link></li>
                   <li><Link to="/admin/OrdersControldmin" className={getActiveClass("/admin/OrdersControldmin")}><i className="bx bx-list-ul"></i><span>Total Orders</span></Link></li>
                   <li><Link to="/admin/addproduct" className={getActiveClass("/admin/addproduct")}><i className="bx bx-plus-circle"></i><span>Add Product</span></Link></li>
-                  <li><Link to="/admin/products" className={getActiveClass("/admin/products")}><i className="bx bx-trash"></i><span>Delete Product</span></Link></li>
+                  <li><Link to="/admin/manageuser" className={getActiveClass("/admin/manageuser")}><i className="bx bx-trash"></i><span>Manage User</span></Link></li>
+                  <li><Link to="/admin/electronicproduct" className={getActiveClass("/admin/electronicproduct")}><i className="bx bx-trash"></i><span>Electronic Product</span></Link></li>
+                  <li><Link to="/admin/viewproduct" className={getActiveClass("/admin/viewproduct")}><i className="bx bx-trash"></i><span>Books</span></Link></li>
 
                 </ul>
                 <div className="cart-pro">

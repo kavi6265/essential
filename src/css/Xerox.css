@@ -387,21 +387,25 @@
 }
 
 .select-containerxerox {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  
 }
 
 .select-labelxerox {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-weight: 600;
   color: #475569;
-  font-size: 14px;
-  transition: color 0.2s ease;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: color 0.3s ease;
 }
 
-.select-containerxerox:hover .select-labelxerox {
+.select-labelxerox:hover {
   color: #2563eb;
 }
+
 
 .select-inputxerox {
   width: 100%;
@@ -413,6 +417,7 @@
   transition: all 0.3s ease;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
   color: #334155;
+  
 }
 
 .select-inputxerox:focus {

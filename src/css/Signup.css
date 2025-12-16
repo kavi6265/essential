@@ -1,261 +1,247 @@
-/* Container Styling */
 .signupboxsignupt {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #6e8efb, #a777e3);
-  position: relative;
-  padding: 20px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 90vh;
+        background: #f1f6ff;
+        padding: 20px;
+    }
 
-.signupbox1signupt {
-  background-color: white;
-  padding: 40px 30px;
-  border-radius: 16px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-  text-align: center;
-  max-width: 420px;
-  width: 100%;
-  transition: transform 0.3s ease;
-}
+    /* Login form box - Keeping a slightly smaller radius for the card itself */
+    .signupbox1signupt {
+        background: #fff;
+        padding: 40px 30px;
+        border-radius: 20px; /* Increased radius for the card container */
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        width: 100%;
+        max-width: 400px;
+        position: relative;
+        transition: all 0.3s ease;
+    }
 
-.signupbox1signupt:hover {
-  transform: translateY(-5px);
-}
+    /* Heading */
+    .signuph1signupt {
+        text-align: center;
+        margin-bottom: 25px;
+        font-size: 28px;
+        color: #2874f0;
+        font-weight: 600;
+    }
 
-.signuph1signupt {
-  color: #5271ff;
-  margin-bottom: 25px;
-  font-weight: 700;
-  font-size: 28px;
-  position: relative;
-  padding-bottom: 12px;
-}
+    /* Input fields - SET TO FULLY ROUNDED (PILL SHAPE) */
+    .signupinputsignupt {
+        width: 100%;
+        padding: 12px 14px;
+        margin-bottom: 15px;
+        border: 1px solid #ccc;
+        /* THIS ACHIEVES THE FULLY ROUNDED LOOK */
+        border-radius: 999px; 
+        font-size: 15px;
+        outline: none;
+        transition: border-color 0.25s ease;
+    }
 
-.signuph1signupt::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: 60px;
-  height: 3px;
-  background: linear-gradient(90deg, #5271ff, #a777e3);
-  border-radius: 2px;
-}
+    .signupinputsignupt:focus {
+        border-color: #2874f0;
+    }
 
-/* Updated Input Field Styling */
-.signupinputsignupt {
-  display: block;
-  width: 100%;
-  padding: 14px 16px;
-  margin: 12px 0;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-sizing: border-box;
-  font-size: 15px;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
-  background-color: #f7f9ff; /* Light blue background */
-  color: #333;
-}
+    /* Show password checkbox and forgot password (Used for Terms Checkbox) */
+    .showloginl {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        margin: 5px 0 15px;
+        padding: 0 2px;
+    }
 
-.signupinputsignupt:focus {
-  border-color: #5271ff;
-  box-shadow: 0 0 0 2px rgba(82, 113, 255, 0.2);
-  outline: none;
-  background-color: #ffffff; /* White background when focused */
-}
+    .show-passwordloginl {
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+        color: #666;
+        gap: 5px;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
 
-.signupinputsignupt::placeholder {
-  color: #8395c7; /* Blueish placeholder text */
-}
+    .show-passwordloginl:hover {
+        color: #5271ff;
+    }
 
-/* You can also add a subtle gradient effect on hover */
-.signupinputsignupt:hover {
-  background: linear-gradient(to right, #f7f9ff, #eef2ff);
-  border-color: #beccff;
-}
+    .show-passwordloginl input[type="checkbox"] {
+        accent-color: #5271ff;
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+    }
 
-/* Button Styling */
-.signupbuttonsignupt {
-  width: 100%;
-  padding: 14px;
-  background: linear-gradient(90deg, #5271ff, #6e8efb);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 15px;
-  box-shadow: 0 4px 10px rgba(82, 113, 255, 0.3);
-}
+    /* The Terms link style */
+    .forgotpasswordlinkloginl {
+        color: #5271ff;
+        font-size: 14px;
+        cursor: pointer;
+        transition: color 0.2s;
+        font-weight: 500;
+    }
 
-.signupbuttonsignupt:hover {
-  background: linear-gradient(90deg, #4260f5, #5b7ef7);
-  box-shadow: 0 6px 12px rgba(82, 113, 255, 0.4);
-  transform: translateY(-2px);
-}
+    .forgotpasswordlinkloginl:hover {
+        color: #3d5af0;
+        text-decoration: underline;
+    }
 
-.signupbuttonsignupt:active {
-  transform: translateY(1px);
-}
+    /* Signup button - SET TO FULLY ROUNDED (PILL SHAPE) */
+    .signupbuttonsignupt {
+        width: 100%;
+        padding: 12px;
+        background: #2874f0;
+        color: #fff;
+        border: none;
+        /* THIS ACHIEVES THE FULLY ROUNDED LOOK */
+        border-radius: 999px; 
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.25s ease;
+    }
 
-/* Login Link Styling */
-.login-linksignupt {
-  margin-top: 20px;
-  font-size: 15px;
-  color: #666;
-}
+    .signupbuttonsignupt:hover {
+        background: #0052cc;
+    }
 
-.loginlinktextsignupt {
-  color: #5271ff;
-  text-decoration: none;
-  font-weight: 600;
-  margin-left: 5px;
-  transition: color 0.2s;
-}
+    /* Message display */
+    .signupmessagesignupt {
+        margin-top: 12px;
+        font-size: 14px;
+        text-align: center;
+        padding: 10px;
+        border-radius: 6px; 
+    }
 
-.loginlinktextsignupt:hover {
-  color: #3d5af0;
-  text-decoration: underline;
-}
+    .signupmessagesignupt.success {
+        background: #d4edda;
+        color: #155724;
+    }
 
-/* Message Styling */
-.signupmessagesignupt {
-  margin-top: 15px;
-  font-size: 14px;
-  padding: 10px;
-  border-radius: 8px;
-  animation: fadeInsignupt 0.5s ease-out;
-  font-weight: 500;
-  color: #fff;
-  background: linear-gradient(90deg, #28a745, #20c997);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-}
+    .signupmessagesignupt.error {
+        background: #f8d7da;
+        color: #721c24;
+    }
 
-.signupmessagesignupt.errorsignupt {
-  background: linear-gradient(90deg, #ff4d4d, #ff6b6b);
-  color: #fff;
-}
+    /* Login link */
+    .signup-linksignupt {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 14px;
+    }
 
-@keyframes fadeInsignupt {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
+    .loginlinktextsignupt {
+        color: #5271ff;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
 
-/* Show Password and Terms Checkboxes */
-.show-password-containersignupt,
+    .loginlinktextsignupt:hover {
+        color: #0052cc;
+        text-decoration: underline;
+    }
+
+    /* Loading */
+    .loadingsignupt {
+        text-align: center;
+        padding: 50px;
+        font-size: 18px;
+        color: #333;
+    }
+    
+    /* Custom styles for checkboxes in Signup component */
+    .show-password-containersignupt {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .show-password-containersignupt .checkboxinputsignupt {
+        accent-color: #5271ff;
+        width: 16px;
+        height: 16px;
+        margin-right: 8px;
+        cursor: pointer;
+    }
+
+    .show-password-containersignupt .checkboxlabelsignupt {
+        font-size: 14px;
+        color: #666;
+        cursor: pointer;
+    }
+    
+    /* Terms Container Styling */
+    /* ================= TERMS & CONDITIONS (SAME AS SHOW PASSWORD) ================= */
+
+/* Container alignment – same row style */
 .terms-containersignupt {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  margin: 12px 0;
-  text-align: left;
-  cursor: pointer;
-  user-select: none;
-  font-size: 14px;
-  color: #555;
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
 }
 
-.checkboxinputsignupt {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
-  border: 2px solid #5271ff;
-  border-radius: 4px;
-  margin-right: 8px;
-  position: relative;
-  cursor: pointer;
-  vertical-align: middle;
-  transition: background 0.2s, border 0.2s;
+/* Checkbox – same size & color */
+.terms-containersignupt input[type="checkbox"] {
+    accent-color: #4444ec;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    cursor: pointer;
 }
 
-.checkboxinputsignupt:checked {
-  background-color: #5271ff;
-  border-color: #5271ff;
+/* Label text – same font as Show Password */
+.terms-containersignupt label {
+    font-size: 14px;
+    color: #666;
+    cursor: pointer;
+    user-select: none;
 }
 
-.checkboxinputsignupt:checked::before {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 5px;
-  width: 5px;
-  height: 10px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+/* Terms link – same style as forgot password */
+.terms-containersignupt .termslabelsignupt {
+    color: #626264;
+    font-weight: 500;
+    margin-left: 4px;
+    cursor: pointer;
+    transition: color 0.2s ease;
 }
 
-.show-password-containersignupt:hover,
-.terms-containersignupt:hover {
-  color: #5271ff;
+.terms-containersignupt .termslabelsignupt:hover {
+    color: #3d5af0;
+    text-decoration: underline;
 }
 
-.checkboxlabelsignupt,
-.termslabelsignupt {
-  cursor: pointer;
-}
+    /* ===== MOBILE RESPONSIVE ===== */
+    @media (max-width: 500px) {
+        .signupbox1signupt {
+            padding: 30px 20px;
+            border-radius: 15px;
+        }
 
-.termslabelsignupt {
-  color: #5271ff;
-  text-decoration: underline;
-  transition: color 0.2s;
-}
+        .signuph1signupt {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
 
-.termslabelsignupt:hover {
-  color: #3d5af0;
-}
+        .signupinputsignupt {
+            padding: 10px 12px;
+            font-size: 14px;
+        }
 
-/* Loading State */
-.loadingsignupt {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  font-size: 18px;
-  color: #5271ff;
-  position: relative;
-}
+        .signupbuttonsignupt {
+            font-size: 15px;
+            padding: 10px;
+        }
 
-.loadingsignupt::after {
-  content: "";
-  width: 40px;
-  height: 40px;
-  border: 5px solid rgba(82, 113, 255, 0.2);
-  border-radius: 50%;
-  border-top-color: #5271ff;
-  position: absolute;
-  animation: spinsignupt 1s linear infinite;
-}
-
-@keyframes spinsignupt {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Responsive Adjustments */
-@media (max-width: 480px) {
-  .signupbox1signupt {
-    padding: 30px 20px;
-  }
-  
-  .signuph1signupt {
-    font-size: 24px;
-  }
-  
-  .signupinputsignupt {
-    padding: 12px 14px;
-  }
-}
+        .showloginl {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+        }
+    }

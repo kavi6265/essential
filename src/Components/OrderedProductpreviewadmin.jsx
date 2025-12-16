@@ -80,7 +80,7 @@ function OrderedProductpreviewadmin() {
         const products = Object.values(items).map((item) => ({
           ...item,
           // keep the original productimage string (could be full URL, filename, or numeric ID)
-          productimage: item.productimage || "/unknowenprofile.png",
+          productimage: item.productimageurl || "/unknowenprofile.png",
         }));
 
         setOrder({
