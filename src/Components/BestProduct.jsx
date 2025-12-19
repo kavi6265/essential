@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { auth, database } from "./firebase";
-import { ref, get, set, push } from "firebase/database";
+import { ref, get, set, push,onValue } from "firebase/database";
 
 /*
   BestProduct.jsx (Modified with 3-Banner Slider)
 */
-function Navbar({ user, auth }) {
+export function Navbar({ user, auth }) {
   const location = useLocation();
   const navigate = useNavigate();
   // RESTORED: State for search query
@@ -421,6 +421,9 @@ const BestProduct = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [user, setUser] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [banners, setBanners] = useState([]);
+const [loadingBanner, setLoadingBanner] = useState(true);
+
 
   // banner state - NOW CONTROLS THE SLIDER
   const [currentBanner, setCurrentBanner] = useState(0);
@@ -428,48 +431,40 @@ const BestProduct = () => {
   // const [textVisible, setTextVisible] = useState(true); 
 
   // --- Banner Data Array ---
-  const banners = [
-    {
-        className: "fk-banner-1",
-        image: "/pencilcombo.png", // Use your placeholder or actual image URL
-        height: "250px", 
-        overlay: "rgba(0, 0, 0, 0.4)",
-        title: `"All Your Stationery Needs"`,
-        buttonText: "Shop Now →",
-        buttonBg: "#ffffff",
-        link: '/shop',
-        buttonColor: '#333',
-        buttonBorder: "1px solid #ccc",
-        fontSize: "28px",
-    },
-    {
-        className: "fk-banner-2",
-        image: "/pencilcombo.png", // Use your placeholder or actual image URL
-        height: "250px", 
-        overlay: "rgba(30, 70, 100, 0.5)",
-        title: `Get 10% Off All Book Orders!`,
-        buttonText: "Explore Books",
-        buttonBg: "#4CAF50",
-        link: '/books',
-        buttonColor: '#fff',
-        buttonBorder: "none",
-        fontSize: "24px",
-    },
-    {
-        className: "fk-banner-3",
-        image: "/pencilcombo.png", // Use your placeholder or actual image URL
-        height: "250px", 
-        overlay: "rgba(180, 0, 0, 0.6)",
-        title: `Need a Printout? Quick Xerox Service Available!`,
-        buttonText: "Start Printing",
-        buttonBg: "#ffc107",
-        link: '/xerox',
-        buttonColor: '#333',
-        buttonBorder: "none",
-        fontSize: "24px",
-    }
-  ];
+  
   // --- End Banner Data Array ---
+// Inside BestProduct component
+useEffect(() => {
+  const fetchBanners = async () => {
+    try {
+      const bannerRef = ref(database, "banners");
+      const snapshot = await get(bannerRef);
+
+      if (snapshot.exists()) {
+        const bannerList = [];
+
+        snapshot.forEach((child) => {
+          const data = child.val();
+          if (data.url) {
+            bannerList.push({
+              id: child.key,
+              fileName: data.fileName,
+              url: data.url
+            });
+          }
+        });
+
+        setBanners(bannerList);
+      }
+    } catch (error) {
+      console.error("Banner fetch error:", error);
+    } finally {
+      setLoadingBanner(false);
+    }
+  };
+
+  fetchBanners();
+}, []);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -664,6 +659,14 @@ const BestProduct = () => {
     
     /* Section wrapper */
     .banner-container { margin-top: 12px; }
+    
+.banner-image {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
     
     .section-header {
       position: relative;
@@ -999,109 +1002,106 @@ const BestProduct = () => {
       <Navbar user={user} profileImageUrl={user?.photoURL} />
 
 
-      <div className="banner-container">
+   <div className="banner-container">
+  {/* ===================== CATEGORIES BAR (Unchanged) ===================== */}
 
-        {/* ===================== CATEGORIES BAR (Unchanged) ===================== */}
-        
-        
-        {/* ===================== SLIDER WRAPPER (Modified Section) ===================== */}
-        <div 
-            className="slider-wrapper"
-            // The margin and max-width styles are now managed by the .slider-wrapper CSS class
-        >
-          {/* SLIDES CONTAINER: This moves left/right to show the current slide */}
-          <div 
-              className="slides-inner"
-              style={{
-                  transform: `translateX(-${currentBanner * (100 / banners.length)}%)` // Move container
-              }}
-          >
-              
-              {/* Map through all banners to create slide items */}
-              {banners.map((banner, index) => (
-                  <div
-                      key={index}
-                      className={`fk-main-banner ${banner.className}`}
-                      style={{
-                          width: `${100 / banners.length}%`, // Each slide takes up equal width
-                          flexShrink: 0, // Prevent slides from shrinking
-                          position: "relative",
-                          height: banner.height,
-                          display: "flex",
-                          alignItems: "center", 
-                          justifyContent: "center", 
-                          // Background with image and overlay
-                          background: `linear-gradient(${banner.overlay}, ${banner.overlay}), url(${banner.image}) center/cover no-repeat`,
-                      }}
-                  >
-                      <div 
-                          className={`fk-banner-content-${index + 1}`}
-                          style={{ 
-                              width: "100%", 
-                              display: "flex", 
-                              flexDirection: "column", 
-                              alignItems: "center", 
-                              justifyContent: "center", 
-                              padding: "0 20px", 
-                              textAlign: "center",
-                              zIndex: 2,
-                          }}
-                      >
-                          <h2 
-                              style={{ 
-                                  fontSize: banner.fontSize, 
-                                  margin: "0 0 15px 0", 
-                                  fontWeight: "600", 
-                                  color: "#fff", 
-                                  lineHeight: "1.2"
-                              }}
-                          >
-                              {banner.title}
-                          </h2>
-                          
-                          <button 
-                              onClick={() => navigate(banner.link)} 
-                              style={{ 
-                                  background: banner.buttonBg, 
-                                  color: banner.buttonColor,
-                                  padding: "10px 20px", 
-                                  borderRadius: "20px", 
-                                  border: banner.buttonBorder, 
-                                  fontSize: "16px", 
-                                  fontWeight: "600", 
-                                  cursor: "pointer", 
-                                  width: "fit-content",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-                              }}
-                          >
-                              {banner.buttonText}
-                          </button>
-                      </div>
-                  </div>
-              ))}
-          </div>
-          
-          {/* SLIDER DOTS (Navigation Indicators) */}
-          <div className="slider-dots">
-              {banners.map((_, index) => (
-                  <span
-                      key={index}
-                      onClick={() => goToSlide(index)}
-                      style={{
-                          display: 'block',
-                          width: '10px',
-                          height: '10px',
-                          borderRadius: '50%',
-                          background: currentBanner === index ? '#fff' : 'rgba(255, 255, 255, 0.5)',
-                          cursor: 'pointer',
-                          transition: 'background 0.3s'
-                      }}
-                  ></span>
-              ))}
-          </div>
-        </div>
+  {/* ===================== SLIDER WRAPPER (Fixed Section) ===================== */}
+  <div className="slider-wrapper">
+    {/* SLIDES CONTAINER: This moves left/right to show the current slide */}
+    <div 
+      className="slides-inner"
+      style={{
+        // FIX: Ensure the template literal is closed and calculations are wrapped correctly
+        width: `${banners.length * 100}%`,
+        transform: `translateX(-${currentBanner * (100 / (banners.length || 1))}%)`,
+        display: "flex",
+        transition: "transform 0.5s ease-in-out"
+      }}
+    >
+     {banners.map((banner, index) => (
+  <div
+    key={banner.id || index}
+    className="fk-main-banner"
+    style={{
+      width: `${100 / (banners.length || 1)}%`,
+      flexShrink: 0,
+      position: "relative",
+      height: "220px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: `url(${banner.url}) center / cover no-repeat`,
+    }}
+  >
+    {/* Optional overlay */}
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: "rgba(0,0,0,0.25)",
+        zIndex: 1,
+      }}
+    />
+
+    {/* CONTENT (optional – can remove if you want image only) */}
+    <div
+      style={{
+        position: "relative",
+        zIndex: 2,
+        textAlign: "center",
+        color: "#fff",
+        padding: "0 20px",
+      }}
+    >
+      {/* Example static text (optional) */}
+      <h2 style={{ fontSize: "22px", fontWeight: "600", marginBottom: "10px" }}>
+        Special Offers
+      </h2>
+
+      <button
+        onClick={() => navigate("/shop")}
+        style={{
+          background: "#fff",
+          color: "#000",
+          padding: "8px 18px",
+          borderRadius: "20px",
+          border: "none",
+          fontSize: "14px",
+          fontWeight: "600",
+          cursor: "pointer",
+        }}
+      >
+        Shop Now
+      </button>
+    </div>
+  </div>
+))}
+</div>
+
+{/* SLIDER DOTS */}
+<div className="slider-dots">
+  {banners.map((_, index) => (
+    <span
+      key={index}
+      onClick={() => goToSlide(index)}
+      style={{
+        display: "block",
+        width: "10px",
+        height: "10px",
+        borderRadius: "50%",
+        background:
+          currentBanner === index
+            ? "#fff"
+            : "rgba(255,255,255,0.5)",
+        cursor: "pointer",
+        transition: "background 0.3s",
+        margin: "0 4px",
+      }}
+    />
+  ))}
+</div>
+</div>
+
       
 
 <section className="categories-bar">
@@ -1121,8 +1121,8 @@ const BestProduct = () => {
         // 3. XEROX
         { 
             name: 'XEROX', 
-            file: '/e sevice 3.jpg', 
-            path: '/xerox-page' 
+            file: '/esevice 3.jpg', 
+            path: '/xerox' 
         },
         // 4. ELECTRONIC KIT
         // (Assuming the image in the screenshot is /category-4.png or similar, 
