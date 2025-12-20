@@ -1135,7 +1135,7 @@ useEffect(() => {
         // 3. XEROX
         { 
             name: 'XEROX', 
-            file: '/esevice 3.jpg', 
+            file: '/e sevice 3.jpg', 
             path: '/xerox' 
         },
         // 4. ELECTRONIC KIT
