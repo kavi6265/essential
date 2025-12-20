@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { database, auth } from "./firebase";
-import { ref, set, get, push } from "firebase/database";
-import { useNavigate, useLocation } from "react-router-dom";
-import "../css/Checkout.css";
+import { ref, set, get, push, update } from "firebase/database";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { Navbar } from "./Login";
 
-// Image ID mapping (keep your same mapping)
+// 1. Image Mapping Object
 const IMAGE_ID_MAPPING = { 
-   "2131230840": "about_us.png",
+    "2131230840": "about_us.png",
   "2131230841": "afoursheet.png",
   "2131230842": "athreenote.png",
   "2131230843": "athreenotee.jpg",
@@ -127,7 +127,7 @@ const IMAGE_ID_MAPPING = {
   "2131231144": "stylishpenblue.jpg",
   "2131231146": "tick.png",
   "2131231147": "tipbox.png",
-  "2131231148": "tikpencil.png",
+  "2131231148": "tippencil.png",
   "2131231151": "top_background.png",
   "2131231152": "uioop.png",
   "2131231153": "unknowenprofile.png",
@@ -142,240 +142,261 @@ const IMAGE_ID_MAPPING = {
   "2131231162": "whiteblack_bg.png",
   "2131231163": "women1.png",
   "2131231164": "xoblue.png",
-  "2131231165": "xooblack.png"
- };
-
-// Extract image name from path
-const extractImageName = (imagePath) => {
-  if (!imagePath || typeof imagePath !== "string") return "";
-  const parts = imagePath.split("/");
-  return parts[parts.length - 1];
+  "2131231165": "xooblack.png",
 };
 
-// Get image URL from IMAGE_ID_MAPPING or fallback
 const getImageUrl = (imageIdOrPath) => {
   if (!imageIdOrPath) return "/unknowenprofile.png";
-  if (IMAGE_ID_MAPPING[imageIdOrPath]) return `/${IMAGE_ID_MAPPING[imageIdOrPath]}`;
-  const name = extractImageName(imageIdOrPath);
-  const id = Object.keys(IMAGE_ID_MAPPING).find(key => IMAGE_ID_MAPPING[key] === name);
-  return id ? `/${IMAGE_ID_MAPPING[id]}` : imageIdOrPath;
+  const idStr = String(imageIdOrPath).trim();
+  if (IMAGE_ID_MAPPING[idStr]) return `/${IMAGE_ID_MAPPING[idStr]}`;
+  return idStr;
 };
 
 const Checkout = () => {
   const [user, setUser] = useState(null);
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [totalAmount, setTotalAmount] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0); 
+  const [totalMrp, setTotalMrp] = useState(0);      
   const [formData, setFormData] = useState({ username: "", phno: "", address: "" });
 
   const navigate = useNavigate();
   const location = useLocation();
   const productFromBuyNow = location.state?.product || null;
 
-  // ✅ Single unified useEffect
+  // --- CALCULATION LOGIC ---
+  const calculateTotals = (items) => {
+    let mrpSum = 0;
+    let sellingSum = 0;
+
+    items.forEach(item => {
+      const qty = parseInt(item.qty) || 1;
+      const mrp = parseFloat(item.mrp) || 0;
+      const selling = parseFloat(item.productamt) || 0;
+
+      mrpSum += mrp * qty;
+      sellingSum += selling * qty;
+    });
+
+    setTotalMrp(mrpSum);
+    setTotalAmount(sellingSum);
+  };
+
+  const updateQuantity = async (itemId, newQty) => {
+    if (newQty < 1) return;
+    const updatedItems = cartItems.map((item) => 
+        item.id === itemId ? { ...item, qty: newQty } : item
+    );
+    setCartItems(updatedItems);
+    calculateTotals(updatedItems);
+    
+    if (!productFromBuyNow && user) {
+      try {
+        await update(ref(database, `userscart/${user.uid}/${itemId}`), { qty: newQty });
+      } catch (err) { console.error("Update Qty Error:", err); }
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-      if (!currentUser) {
-        navigate("/login");
-        return;
-      }
-
+      if (!currentUser) { navigate("/login"); return; }
       setUser(currentUser);
 
       try {
-        // Fetch user info
-        const userRef = ref(database, `users/${currentUser.uid}`);
-        const snapshot = await get(userRef);
-        if (snapshot.exists()) {
-          const userData = snapshot.val();
-          setFormData({
-            username: userData.name || "",
-            phno: userData.phno || "",
-            address: userData.address || ""
+        const userSnap = await get(ref(database, `users/${currentUser.uid}`));
+        if (userSnap.exists()) {
+          setFormData({ 
+            username: userSnap.val().name || "", 
+            phno: userSnap.val().phno || "", 
+            address: userSnap.val().address || "" 
           });
         }
 
-        // ✅ If Buy Now
-         if (productFromBuyNow) {
-          const rawPrice = productFromBuyNow.price || productFromBuyNow.productamt || 0;
-          const numericPrice =
-            typeof rawPrice === "string"
-              ? parseFloat(rawPrice.replace(/[₹,]/g, "")) || 0
-              : parseFloat(rawPrice);
+        if (productFromBuyNow) {
+          // LOGIC FIX BASED ON YOUR IMAGE
+          // input rawPrice (e.g. 100) and discount (e.g. 5)
+          const rawPrice = typeof productFromBuyNow.productamt === "string" 
+            ? parseFloat(productFromBuyNow.productamt.replace(/[₹,]/g, "")) 
+            : parseFloat(productFromBuyNow.productamt || productFromBuyNow.price) || 0;
 
-          const discountPercent = parseFloat(productFromBuyNow.discount) || 0;
-          const finalPrice = discountPercent
-            ? numericPrice - (numericPrice * discountPercent) / 100
-            : numericPrice;
+          const discountVal = parseFloat(productFromBuyNow.discount) || 0;
+
+          // MRP is the original (100), ProductAmt is what they pay (100 - 5 = 95)
+          const finalSellingPrice = rawPrice - discountVal;
+
           const singleItem = {
-            id: "temp-" + Date.now(),
-            productname: productFromBuyNow.name || productFromBuyNow.productname,
-            productamt: finalPrice.toFixed(2),
-            productimage: productFromBuyNow.productimage || "",
-            productimageurl: productFromBuyNow.img || productFromBuyNow.imageUrl || "",
+            id: productFromBuyNow.id || Date.now().toString(),
+            productname: productFromBuyNow.productname || productFromBuyNow.name, 
+            productamt: finalSellingPrice, 
+            mrp: rawPrice,                 
+            productimage: productFromBuyNow.productimage || productFromBuyNow.imageUrl || "", 
+            brand: productFromBuyNow.brand || "",
             qty: 1
           };
-
+          
           setCartItems([singleItem]);
-          setTotalAmount(finalPrice);
+          calculateTotals([singleItem]);
+          setLoading(false);
         } else {
-          // ✅ Normal checkout (from cart)
           await fetchCartItems(currentUser.uid);
         }
-      } catch (err) {
-        console.error("Error in checkout:", err);
-      } finally {
+      } catch (err) { 
         setLoading(false);
       }
     });
-
     return () => unsubscribe();
   }, [navigate, productFromBuyNow]);
 
-  // Fetch cart items
-  const fetchCartItems = async (userId) => {
-    const cartRef = ref(database, `userscart/${userId}`);
-    const snapshot = await get(cartRef);
+ const fetchCartItems = async (userId) => {
+    const snapshot = await get(ref(database, `userscart/${userId}`));
     if (snapshot.exists()) {
       const items = [];
-      snapshot.forEach(child => items.push({ id: child.key, ...child.val() }));
+      snapshot.forEach(child => {
+        const data = child.val();
+        const selling = parseFloat(data.productamt) || parseFloat(data.price) || 0;
+        const discount = parseFloat(data.discount) || 0;
+        const mrp = parseFloat(data.mrp) || (selling + discount);
+        
+        items.push({ 
+          id: child.key, 
+          ...data,
+          productname: data.productname || data.name,
+          productamt: selling,
+          mrp: mrp,
+          qty: parseInt(data.qty) || 1
+        });
+      });
       setCartItems(items);
-      calculateTotal(items);
-    } else {
-      navigate("/cart");
+      calculateTotals(items);
+    } else { navigate("/cart"); }
+    setLoading(false);
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!formData.username || !formData.phno || !formData.address) { 
+      alert("Please fill shipping details"); 
+      return; 
     }
-  };
-
-  const calculateTotal = (items) => {
-    const total = items.reduce((sum, item) => sum + (parseFloat(item.productamt) * item.qty), 0);
-    setTotalAmount(total);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handlePlaceOrder = async (e) => {
-    e.preventDefault();
-    if (!user) return navigate("/login");
-    if (!formData.username || !formData.phno || !formData.address) {
-      alert("Please fill all fields");
+    if (totalAmount < 100) {
+      alert(`Minimum order amount is ₹${100}. Please add more items to your cart.`);
       return;
     }
-    if (totalAmount < 50) {
-      alert("Minimum order amount is ₹50. Please add more items to your cart.");
-      return;
-    }
-
     const orderId = push(ref(database, "orders")).key;
-    const orderTimestamp = Date.now();
-
-    const orderItems = {};
-    cartItems.forEach(item => {
-      orderItems[item.id] = {
-        productname: item.productname,
-        productamt: item.productamt,
-        productimage: item.productimage || "2131231153",
-        productimageurl: item.productimageurl || null,
-        qty: item.qty,
-        rating: item.rating || 0,
-        description: item.description || ""
-      };
-    });
-
-    const completeOrder = {
-      username: formData.username,
-      phno: formData.phno,
-      address: formData.address,
-      orderTimestamp,
-      orderTotal: totalAmount.toFixed(2),
-      ordered: true,
-      delivered: false,
-      items: orderItems
+    const completeOrder = { 
+        ...formData, 
+        orderTimestamp: Date.now(), 
+        orderTotal: totalAmount.toFixed(2), 
+        savings: (totalMrp - totalAmount).toFixed(2), 
+        items: cartItems, 
+        userId: user.uid,
+        status: "Confirmed"
     };
 
     try {
-      const orderRef = ref(database, `userorders/${user.uid}/${orderId}`);
-      await set(orderRef, completeOrder);
-
-      // Clear cart only if not Buy Now
-      if (!productFromBuyNow) {
-        const cartRef = ref(database, `userscart/${user.uid}`);
-        await set(cartRef, null);
-      }
-
+      await set(ref(database, `userorders/${user.uid}/${orderId}`), completeOrder);
+      await set(ref(database, `orders/${orderId}`), completeOrder);
+      if (!productFromBuyNow) await set(ref(database, `userscart/${user.uid}`), null);
       navigate("/success", { state: { orderId, totalAmount: totalAmount.toFixed(2) } });
-    } catch (err) {
-      console.error("Error placing order:", err);
-      alert("Failed to place order");
-    }
+    } catch (err) { alert("Failed to place order."); }
   };
 
-  if (loading) return <div className="section-p1"><h2>Loading checkout...</h2></div>;
+  if (loading) return <div className="fk-loader">Loading Checkout...</div>;
 
   return (
-    <div>
-      <section id="page-header" className="about-header">
-        <h2>#checkout</h2>
-        <p>{productFromBuyNow ? "Buy Now Product" : "Complete your purchase"}</p>
-      </section>
-
-      <section id="checkout" className="section-p1">
-        <div className="checkout-container">
-          {/* Shipping form */}
-          <div className="shipping-details">
-            <h3>Shipping Details</h3>
-            <form onSubmit={handlePlaceOrder}>
-              <div className="form-group">
-                <label>Full Name</label>
-                <input type="text" name="username" value={formData.username} onChange={handleInputChange} required />
-              </div>
-              <div className="form-group">
-                <label>Phone Number</label>
-                <input type="tel" name="phno" value={formData.phno} onChange={handleInputChange} required />
-              </div>
-              <div className="form-group">
-                <label>Delivery Address</label>
-                <textarea name="address" value={formData.address} onChange={handleInputChange} required rows="4"></textarea>
-              </div>
-              <button type="submit" className="normal">Confirm Order</button>
-            </form>
+    <div className="fk-checkout-page">
+      <Navbar user={user} />
+      <div className="fk-checkout-container">
+        <div className="fk-checkout-left">
+          <div className="fk-step-card active">
+            <div className="step-header active-header"><span></span> DELIVERY ADDRESS</div>
+            <div className="step-body">
+              <input className="fk-input" type="text" placeholder="Name" value={formData.username} onChange={(e)=>setFormData({...formData, username: e.target.value})} />
+              <input className="fk-input" type="tel" placeholder="Mobile" value={formData.phno} onChange={(e)=>setFormData({...formData, phno: e.target.value})} />
+              <textarea className="fk-input" placeholder="Address" rows="3" value={formData.address} onChange={(e)=>setFormData({...formData, address: e.target.value})}></textarea>
+            </div>
           </div>
 
-          {/* Order summary */}
-          <div className="order-summary">
-            <h3>Order Summary</h3>
-            <div className="summary-items">
-              {cartItems.map(item => (
-                <div key={item.id} className="summary-item">
-                  <div className="item-info">
-                    <img
-                      src={item.productimageurl || getImageUrl(item.productimage)}
-                      alt={item.productname}
-                      className="summary-img"
-                      onError={(e) => (e.target.src = "/placeholder.png")}
-                    />
-                    <div>
-                      <h4>{item.productname}</h4>
-                      <p>Qty: {item.qty || 1}</p>
+          <div className="fk-step-card">
+            <div className="step-header"><span></span> ORDER SUMMARY</div>
+            <div className="step-body">
+              {cartItems.map((item) => {
+                const discountPercent = item.mrp > 0 ? Math.round(((item.mrp - item.productamt) / item.mrp) * 100) : 0;
+                return (
+                  <div key={item.id} className="fk-summary-item">
+                    <div className="item-img-container">
+                        <img src={getImageUrl(item.productimage)} alt={item.productname} onError={(e) => { e.target.src = "/unknowenprofile.png"; }} />
+                    </div>
+                    <div className="item-details">
+                      <p className="brand-label">{item.brand || ""}</p>
+                      <h4 className="product-name-text">{item.productname}</h4>
+                      <div className="qty-controls">
+                        <button onClick={() => updateQuantity(item.id, item.qty - 1)}>−</button>
+                        <span>{item.qty}</span>
+                        <button onClick={() => updateQuantity(item.id, item.qty + 1)}>+</button>
+                      </div>
+                      <div className="item-price-row">
+                        <span className="current-price">₹{item.productamt.toFixed(2)}</span>
+                        {item.mrp > item.productamt && (
+                          <>
+                            <span className="old-mrp">₹{item.mrp.toFixed(2)}</span>
+                            <span className="discount-tag-badge">{discountPercent}% OFF</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="item-price">
-                    ₹{((parseFloat(item.productamt)) * (item.qty || 1)).toFixed(2)}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-             <div className="summary-total">
-              <div className="total-row"><span>Subtotal</span><span>₹{totalAmount.toFixed(2)}</span></div>
-              <div className="total-row"><span>Shipping</span><span>Free</span></div>
-              <div className="total-row final-total"><span>Total</span><span>₹{totalAmount.toFixed(2)}</span></div>
+                );
+              })}
             </div>
           </div>
         </div>
-      </section>
+
+        <div className="fk-checkout-right">
+          <div className="fk-price-card">
+            <h3 className="price-title">PRICE DETAILS</h3>
+            <div className="price-row"><span>Price</span><span>₹{totalMrp.toFixed(2)}</span></div>
+            <div className="price-row"><span>Discount</span><span className="green">- ₹{(totalMrp - totalAmount).toFixed(2)}</span></div>
+            <div className="price-row"><span>Delivery</span><span className="green">FREE</span></div>
+            <div className="total-payable"><span>Total Payable</span><span>₹{totalAmount.toFixed(2)}</span></div>
+            { (totalMrp - totalAmount) > 0 && (
+              <p className="save-msg">You will save ₹{(totalMrp - totalAmount).toFixed(2)} on this order!</p>
+            )}
+            <button className="fk-confirm-btn" onClick={handlePlaceOrder}>CONFIRM ORDER</button>
+          </div>
+        </div>
+      </div>
+      
+      <style>{`
+        .fk-checkout-page { background: #f1f3f6; min-height: 100vh; font-family: Roboto, Arial, sans-serif; }
+        .fk-checkout-header { background: #2874f0; padding: 12px 10%; }
+        .fk-logo { height: 28px; }
+        .fk-checkout-container { display: flex; max-width: 1100px; margin: 20px auto; gap: 16px; padding: 0 10px; }
+        .fk-checkout-left { flex: 1; }
+        .fk-checkout-right { width: 380px; position: sticky; top: 20px; }
+        .fk-step-card { background: #fff; margin-bottom: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .step-header { padding: 15px 20px; font-weight: bold; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 15px; }
+        .active-header { background: #2874f0; color: #fff; }
+        .step-body { padding: 20px; }
+        .fk-input { padding: 12px; border: 1px solid #e0e0e0; margin-bottom: 10px; width: 100%; box-sizing: border-box; }
+        .fk-summary-item { display: flex; gap: 20px; padding: 15px 0; border-bottom: 1px solid #f0f0f0; }
+        .item-img-container { width: 100px; height: 100px; }
+        .item-img-container img { width: 100%; height: 100%; object-fit: contain; }
+        .product-name-text { font-size: 18px; margin: 8px 0; font-weight: 600; }
+        .qty-controls { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+        .qty-controls button { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #c2c2c2; background: #fff; cursor: pointer; }
+        .item-price-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+        .current-price { font-size: 20px; font-weight: bold; color: #212121; }
+        .old-mrp { text-decoration: line-through; color: #878787; font-size: 14px; }
+        .discount-tag-badge { background: #ff0000; color: #fff; font-size: 12px; padding: 2px 6px; font-weight: bold; border-radius: 2px; }
+        .fk-price-card { background: #fff; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .price-title { color: #878787; font-size: 16px; margin-bottom: 20px; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; }
+        .price-row { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .green { color: #388e3c; }
+        .total-payable { border-top: 1px dashed #e0e0e0; padding-top: 20px; font-weight: bold; font-size: 18px; display: flex; justify-content: space-between; }
+        .save-msg { color: #388e3c; font-weight: bold; margin-top: 15px; font-size: 14px; }
+        .fk-confirm-btn { background: #fb641b; color: #fff; border: none; width: 100%; padding: 15px; font-weight: bold; cursor: pointer; margin-top: 20px; font-size: 16px; }
+        @media (max-width: 768px) { .fk-checkout-container { flex-direction: column; } .fk-checkout-right { width: 100%; position: static; } }
+      `}</style>
     </div>
   );
 };

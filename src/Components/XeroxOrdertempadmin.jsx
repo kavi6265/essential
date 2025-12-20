@@ -12,61 +12,47 @@ function XeroxOrdertempadmin() {
   const navigate = useNavigate();
 
   const handleOrderClick = (order) => {
-    // Navigate to order preview page with correct parameters using the order object
     navigate(`/tempadmin/XeroxOrderpreviewtempadmin/${order.userId}/${order.orderId}/${order.grandTotal}`);
   };
 
   useEffect(() => {
-    // Initialize Firebase database reference
     const database = getDatabase();
     const pdfsRef = ref(database, "pdfs");
 
-    // Fetch orders from Firebase
     onValue(pdfsRef, (snapshot) => {
       try {
         const uniqueOrders = {};
-        
-        // Process the data to properly capture userId and orderId
         snapshot.forEach((userIdSnapshot) => {
-          const userId = userIdSnapshot.key; // This is the userId
-          
+          const userId = userIdSnapshot.key;
           userIdSnapshot.forEach((orderIdSnapshot) => {
-            const orderId = orderIdSnapshot.key; // This is the orderId
-            
-            // Check if at least one file in this order is not delivered
+            const orderId = orderIdSnapshot.key;
             let someFileNotDelivered = false;
             let orderData = null;
-            
+
             orderIdSnapshot.forEach((fileSnapshot) => {
               const fileData = fileSnapshot.val();
-              
-              // If this is the first file we've seen for this order, or we haven't found any undelivered files yet
               if (!orderData) {
                 orderData = {
-                  name: fileData.name0,
+                  name: fileData.name0 || "Document",
                   uri: fileData.uri0,
-                  grandTotal: fileData.grandTotal0,
+                  grandTotal: fileData.grandTotal0 || 0,
                   orderId: orderId,
                   delivered: fileData.delivered || false,
-                  username: fileData.username,
-                  userId: userId // Store the userId
+                  username: fileData.username || "Customer",
+                  userId: userId,
+                  // Assuming uploadTime is available for "Ordered on" text
+                  date: fileData.uploadTime ? new Date(fileData.uploadTime).toDateString() : ""
                 };
               }
-              
-              // Check if this file is not delivered
-              if (!fileData.delivered) {
-                someFileNotDelivered = true;
-              }
+              if (!fileData.delivered) someFileNotDelivered = true;
             });
-            
-            // Only add this order if we have data and at least one file is not delivered
+
             if (orderData && someFileNotDelivered && !uniqueOrders[orderId]) {
               uniqueOrders[orderId] = orderData;
             }
           });
         });
 
-        // Convert to array for rendering
         const ordersArray = Object.values(uniqueOrders);
         setOrders(ordersArray);
         setFilteredOrders(ordersArray);
@@ -75,94 +61,105 @@ function XeroxOrdertempadmin() {
         console.error("Error fetching orders:", error);
         setLoading(false);
       }
-    }, (error) => {
-      console.error("Database error:", error);
-      setLoading(false);
     });
   }, []);
 
-  // Handle search with debounce
   const handleSearch = (e) => {
     const text = e.target.value;
     setSearchText(text);
-
-    // Clear any existing timer
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    // Set a new timer for filtering
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(() => {
-      filterOrders(text);
+      const filtered = orders.filter(order => 
+        order.orderId.toLowerCase().includes(text.toLowerCase()) ||
+        (order.username && order.username.toLowerCase().includes(text.toLowerCase()))
+      );
+      setFilteredOrders(filtered);
     }, 300);
   };
 
-  // Filter orders based on search text
-  const filterOrders = (text) => {
-    if (!text.trim()) {
-      setFilteredOrders(orders);
-      return;
-    }
-
-    const filtered = orders.filter(order => 
-      order.orderId.toLowerCase().includes(text.toLowerCase()) ||
-      (order.username && order.username.toLowerCase().includes(text.toLowerCase()))
-    );
-    setFilteredOrders(filtered);
-  };
-
   return (
-    <div className="temp-admin-containero">
-      <div className="search-containero">
-        <div className="search-input-wrappero">
-          <i className="search-icono fas fa-search"></i>
-          <input
-            type="text"
-            className="search-inputo"
-            placeholder="Search by Order ID or Username"
-            value={searchText}
-            onChange={handleSearch}
-          />
-        </div>
-      </div>
+    <div className="fk-admin-page">
+      {/* Flipkart Header */}
+      <header className="fk-header">
+        <div className="fk-header-content">
+          <div className="fk-logo-section">
+            <span className="fk-brand">Flipkart</span>
+            <span className="fk-plus">Explore <span className="fk-plus-gold">Plus</span></span>
+          </div>
+          
+          <div className="fk-search-container">
+            <input
+              type="text"
+              className="fk-search-input"
+              placeholder="Search for orders, customers and more"
+              value={searchText}
+              onChange={handleSearch}
+            />
+            <button className="fk-search-btn">
+               <svg width="20" height="20" viewBox="0 0 17 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 15.5L11.5 11.5M13.5 7.5C13.5 10.8137 10.8137 13.5 7.5 13.5C4.18629 13.5 1.5 10.8137 1.5 7.5C1.5 4.18629 4.18629 1.5 7.5 1.5C10.8137 1.5 13.5 4.18629 13.5 7.5Z" stroke="#2874F0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+          </div>
 
-      {loading ? (
-        <div className="loading-containero">
-          <div className="spinnero"></div>
-          <p>Loading orders...</p>
+          <div className="fk-nav-actions">
+            <button className="fk-login-btn">Admin</button>
+          </div>
         </div>
-      ) : filteredOrders.length === 0 ? (
-        <div className="no-orders-messageo">
-          <p>No orders found</p>
+      </header>
+
+      <main className="fk-container">
+        <div className="fk-toolbar">
+          <h2>All Orders ({filteredOrders.length})</h2>
         </div>
-      ) : (
-        <div className="orders-listo">
-          {filteredOrders.map((order) => (
-            <div 
-              key={order.orderId} 
-              className="order-cardo"
-              onClick={() => handleOrderClick(order)}
-            >
-              <div className="order-headero">
-                <span className="order-ido">Order #{order.orderId}</span>
-              </div>
-              <div className="order-detailso">
-                <div className="customer-infoo">
-                  <span className="customer-nameo">{order.username}</span>
-                  <span className="document-nameo">{order.name}</span>
+
+        {loading ? (
+          <div className="fk-loader-container">
+            <div className="fk-spinner"></div>
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="fk-empty-state">
+            <p>No pending orders found.</p>
+          </div>
+        ) : (
+          <div className="fk-order-list">
+            {filteredOrders.map((order) => (
+              <div 
+                key={order.orderId} 
+                className="fk-order-row"
+                onClick={() => handleOrderClick(order)}
+              >
+                {/* Column 1: Icon */}
+                <div className="fk-col fk-col-img">
+                  <div className="fk-doc-box">
+                    <span className="fk-doc-label">PDF</span>
+                  </div>
                 </div>
-                <div className="price-tago">
-                  <span>₹ {order.grandTotal}</span>
+
+                {/* Column 2: Main Details */}
+                <div className="fk-col fk-col-main">
+                  <span className="fk-order-id">ID: {order.orderId}</span>
+                  <p className="fk-doc-name">{order.name}</p>
+                  <span className="fk-customer-name">Customer: {order.username}</span>
+                </div>
+
+                {/* Column 3: Price */}
+                <div className="fk-col fk-col-price">
+                  <span className="fk-price">₹{order.grandTotal}</span>
+                  <span className="fk-pay-mode">Cash on Delivery</span>
+                </div>
+
+                {/* Column 4: Status */}
+                <div className="fk-col fk-col-status">
+                  <div className="fk-status-wrapper">
+                    <div className="fk-dot dot-pending"></div>
+                    <span className="fk-status-text">Ordered on {order.date || 'Today'}</span>
+                  </div>
+                  <span className="fk-delivery-estimate">Processing for print</span>
                 </div>
               </div>
-              <div className="order-statuso">
-                <span className="status-indicatoro pendingo"></span>
-                <span className="status-texto">Processing</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

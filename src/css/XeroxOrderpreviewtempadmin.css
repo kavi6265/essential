@@ -1,544 +1,282 @@
-/* XeroxOrderpreviewtempadmin.css */
+:root {
+  --fk-blue: #2874f0;
+  --fk-orange: #fb641b;
+  --fk-bg: #f1f3f6;
+  --fk-text: #212121;
+  --fk-gray: #878787;
+  --fk-border: #f0f0f0;
+  --fk-green: #26a541;
+}
+
 .xerox-preview-containeri {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 20px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: #333;
-    background-color: #f5f7fa;
-    min-height: 100vh;
-  }
-  
-  /* Header Section */
-  .preview-headeri {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-    border-bottom: 2px solid #e0e6ed;
-    padding-bottom: 15px;
-  }
-  
-  .preview-headeri h2 {
-    margin: 0;
-    color: #2c3e50;
-    font-size: 24px;
-    font-weight: 600;
-  }
-  
-  .admin-titlei {
-    color: #2c3e50;
-    font-weight: 600;
-    margin: 0;
-  }
-  
-  .order-id-displayi {
-    font-size: 18px;
-    font-weight: 600;
-    color: #3498db;
-    padding: 6px 12px;
-    background-color: #ebf5fb;
-    border-radius: 6px;
-    box-shadow: 0 2px 5px rgba(52, 152, 219, 0.1);
-  }
-  
-  /* Loading Spinner */
-  .profile-loadingi {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 300px;
-  }
-  
-  .spinneri {
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border-left-color: #3498db;
-    animation: spini 1s linear infinite;
-    margin-bottom: 15px;
-  }
-  
-  .loading-texti {
-    color: #7f8c8d;
-    font-size: 16px;
-  }
-  
-  @keyframes spini {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-  
-  /* Order Summary Section */
-  .order-summaryi {
-    margin-bottom: 30px;
-  }
-  
-  .summary-cardi {
-    background-color: #fff;
-    border-radius: 10px;
-    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
-    padding: 24px;
-    margin-bottom: 20px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-  
-  .summary-cardi:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-  }
-  
-  .order-details-gridi {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 18px;
-    margin-bottom: 20px;
-  }
-  
-  .order-detail-itemi {
-    padding: 8px 0;
-  }
-  
-  .detail-labeli {
-    font-weight: 600;
-    color: #7f8c8d;
-    margin-right: 5px;
-  }
-  
-  .detail-valuei {
-    color: #2c3e50;
-    font-weight: 500;
-  }
-  
-  .address-itemi {
-    grid-column: 1 / -1;
-  }
-  
-  .detail-valuei.addressi {
-    display: block;
-    margin-top: 8px;
-    padding: 12px;
-    background-color: #f9f9f9;
-    border-radius: 6px;
-    font-size: 14px;
-    border-left: 3px solid #3498db;
-  }
-  
-  /* Status Badges */
-  .status-badgei {
-    display: inline-block;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-  }
-  
-  .status-badgei.deliveredi {
-    background-color: #e8f5e9;
-    color: #2e7d32;
-    border: 1px solid #c8e6c9;
-  }
-  
-  .status-badgei.pendingi {
-    background-color: #fff3e0;
-    color: #e65100;
-    border: 1px solid #ffe0b2;
-  }
-  
-  .status-badgei.paidi {
-    background-color: #e8f5e9;
-    color: #2e7d32;
-    border: 1px solid #c8e6c9;
-  }
-  
-  .status-badgei.unpaidi {
-    background-color: #ffebee;
-    color: #c62828;
-    border: 1px solid #ffcdd2;
-  }
-  
-  /* Admin Actions */
-  .admin-actionsi {
-    display: flex;
-    justify-content: flex-end;
-    gap: 15px;
-    margin-top: 20px;
-  }
-  
-  .admin-action-buttoni {
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-    outline: none;
-  }
-  
-  .admin-action-buttoni.primaryi {
-    background-color: #3498db;
-    color: white;
-  }
-  
-  .admin-action-buttoni.primaryi:hover {
-    background-color: #2980b9;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(41, 128, 185, 0.2);
-  }
-  
-  .admin-action-buttoni.disabledi {
-    background-color: #ecf0f1;
-    color: #95a5a6;
-    cursor: not-allowed;
-  }
-  
-  /* Confirm Order Button - Special styling for the new button */
-  .confirm-order-buttoni {
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border: none;
-    outline: none;
-    background-color: #27ae60;
-    color: white;
-    box-shadow: 0 3px 10px rgba(39, 174, 96, 0.2);
-  }
-  
-  .confirm-order-buttoni:hover {
-    background-color: #219653;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(33, 150, 83, 0.3);
-  }
-  
-  .confirm-order-buttoni:disabled {
-    background-color: #ecf0f1;
-    color: #95a5a6;
-    cursor: not-allowed;
-    box-shadow: none;
-    transform: none;
-  }
-  
-  /* Files Section */
-  .section-titlei {
-    font-size: 20px;
-    margin-bottom: 20px;
-    font-weight: 600;
-    color: #2c3e50;
-    position: relative;
-    padding-left: 15px;
-  }
-  
-  .section-titlei::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 3px;
-    height: 20px;
-    width: 4px;
-    background-color: #3498db;
-    border-radius: 2px;
-  }
-  
-  .files-containeri {
-    background-color: #fff;
-    border-radius: 10px;
-    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
-    padding: 24px;
-  }
-  
-  .no-files-messagei {
-    text-align: center;
-    padding: 40px;
-    color: #95a5a6;
-    font-style: italic;
-    background-color: #f9f9f9;
-    border-radius: 10px;
-    margin: 20px 0;
-  }
-  
-  .empty-messagei {
-    margin: 0;
-    font-size: 16px;
-  }
-  
-  .files-listi {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-  }
-  
-  .file-itemi {
-    border: 1px solid #e0e6ed;
-    border-radius: 10px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    background-color: #fff;
-  }
-  
-  .file-itemi:hover {
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    transform: translateY(-3px);
-  }
-  
-  .file-headeri {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px;
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #e0e6ed;
-  }
-  
-  .file-name-containeri {
-    display: flex;
-    align-items: center;
-  }
-  
-  .file-iconi {
-    margin-right: 12px;
-    font-size: 20px;
-  }
-  
-  .file-namei {
-    font-weight: 600;
-    color: #2c3e50;
-    font-size: 16px;
-  }
-  
-  .upload-timei {
-    color: #7f8c8d;
-    font-size: 13px;
-    background-color: #f1f3f5;
-    padding: 4px 10px;
-    border-radius: 20px;
-  }
-  
-  .file-infoi {
-    padding: 20px 16px;
-  }
-  
-  .file-detailsi {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin-bottom: 15px;
-  }
-  
-  .detail-groupi {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    background-color: #f9f9f9;
-    padding: 12px;
-    border-radius: 8px;
-  }
-  
-  .detail-itemi {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
-    border-bottom: 1px dashed #e0e6ed;
-  }
-  
-  .detail-valuei.amounti {
-    font-weight: 700;
-    color: #e74c3c;
-  }
-  
-  .file-notesi {
-    margin-top: 20px;
-    padding: 15px;
-    background-color: #fff8e1;
-    border-radius: 8px;
-    border-left: 4px solid #ffc107;
-  }
-  
-  .notes-labeli {
-    font-weight: 600;
-    color: #f57c00;
-    display: block;
-    margin-bottom: 8px;
-  }
-  
-  .notes-contenti {
-    margin: 0;
-    color: #5d4037;
-    font-size: 14px;
-    line-height: 1.5;
-  }
-  
-  .file-actionsi {
-    padding: 16px;
-    border-top: 1px solid #e0e6ed;
-    background-color: #f8f9fa;
-    display: flex;
-    justify-content: flex-end;
-  }
-  
-  .download-buttoni {
-    padding: 10px 18px;
-    background-color: #2ecc71;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 140px;
-  }
-  
-  .download-buttoni:hover {
-    background-color: #27ae60;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(46, 204, 113, 0.2);
-  }
-  
-  .download-buttoni:disabled {
-    background-color: #ecf0f1;
-    color: #95a5a6;
-    cursor: not-allowed;
-    box-shadow: none;
-    transform: none;
-  }
-  
-  /* Download button states */
-.download-buttoni.downloadingi {
-    background-color: #3498db;
-    animation: pulse 1.5s infinite;
-  }
-  
-  .download-buttoni.completedi {
-    background-color: #2ecc71;
-  }
-  
-  .download-buttoni.errori {
-    background-color: #e74c3c;
-  }
-  
-  @keyframes pulse {
-    0% {
-      box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.5);
-    }
-    70% {
-      box-shadow: 0 0 0 10px rgba(52, 152, 219, 0);
-    }
-    100% {
-      box-shadow: 0 0 0 0 rgba(52, 152, 219, 0);
-    }
-  }
-  
-  /* Bottom Actions */
+  background-color: var(--fk-bg);
+  min-height: 100vh;
+  padding: 16px 8px;
+  font-family: Roboto, Arial, sans-serif;
+  color: var(--fk-text);
+}
+
+/* Header Section - Clean & Minimal */
+.preview-headeri {
+  max-width: 1000px;
+  margin: 0 auto 12px auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 16px 24px;
+  box-shadow: 0 1px 1px 0 rgba(0,0,0,0.16);
+}
+
+.preview-headeri h2 {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.order-id-displayi {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fk-gray);
+}
+
+/* Order Summary Card */
+.order-summaryi {
+  max-width: 1000px;
+  margin: 0 auto 12px auto;
+}
+
+.summary-cardi {
+  background: white;
+  padding: 24px;
+  box-shadow: 0 1px 1px 0 rgba(0,0,0,0.16);
+}
+
+/* --- Modified Sections for Vertical Stack --- */
+
+/* Changes the grid to a single column for "one by one" display */
+.order-details-gridi {
+  display: flex;
+  flex-direction: column; /* Stacks items vertically */
+  gap: 16px;             /* Space between each detail */
+}
+
+.order-detail-itemi {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--fk-border); /* Adds a thin line between details */
+}
+
+/* Removes border from the last item so it looks clean */
+.order-detail-itemi:last-child {
+  border-bottom: none;
+}
+
+/* File info stacking - changes from 3-column grid to vertical list */
+.file-detailsi {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-groupi {
+  display: flex;
+  justify-content: space-between; /* Puts label on left and value on right */
+  align-items: center;
+  background-color: #f9f9f9;
+  padding: 10px 15px;
+  border-radius: 4px;
+}
+
+/* Adjusts labels and values for the horizontal split */
+.detail-itemi {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.detail-labeli {
+  margin-bottom: 0; /* Removes margin since they are now side-by-side */
+}
+
+/* --- Keep the rest of your root and layout styles as they were --- */
+
+.detail-valuei {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.detail-valuei.addressi {
+  line-height: 1.5;
+  color: #444;
+  background: #f9f9f9;
+  padding: 12px;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+/* Status Badges */
+.status-badgei {
+  font-size: 12px;
+  font-weight: bold;
+  padding: 4px 12px;
+  border-radius: 2px;
+}
+
+.status-badgei.pendingi { background: #fff3e0; color: var(--fk-orange); }
+.status-badgei.deliveredi { background: #e8f5e9; color: var(--fk-green); }
+.status-badgei.paidi { color: var(--fk-green); }
+
+/* Files Section */
+.section-titlei {
+  max-width: 1000px;
+  margin: 20px auto 12px auto;
+  font-size: 16px;
+  font-weight: 500;
+  padding-left: 8px;
+}
+
+.files-containeri {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.file-itemi {
+  background: white;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 1px 0 rgba(0,0,0,0.16);
+  border: 1px solid var(--fk-border);
+}
+
+.file-headeri {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--fk-border);
+  background: #fafafa;
+}
+
+.file-namei {
+  font-weight: 500;
+  color: var(--fk-blue);
+  font-size: 14px;
+}
+
+.upload-timei {
+  font-size: 12px;
+  color: var(--fk-gray);
+}
+
+.file-infoi { padding: 20px 24px; }
+
+.file-detailsi {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.detail-itemi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-valuei.amounti {
+  color: var(--fk-text);
+  font-weight: 600;
+}
+
+/* Notes Section - Flipkart Style Alert */
+.file-notesi {
+  margin-top: 15px;
+  padding: 12px;
+  background-color: #fff9e6;
+  border: 1px solid #f2e8c5;
+  border-radius: 4px;
+}
+
+.notes-labeli {
+  font-size: 11px;
+  font-weight: bold;
+  color: #856404;
+  text-transform: uppercase;
+}
+
+.notes-contenti {
+  font-size: 13px;
+  color: #856404;
+}
+
+/* Buttons */
+.file-actionsi {
+  padding: 12px 24px;
+  border-top: 1px solid var(--fk-border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.download-buttoni {
+  background: white;
+  color: var(--fk-blue);
+  border: 1px solid #dbdbdb;
+  padding: 8px 24px;
+  font-weight: 500;
+  border-radius: 2px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.download-buttoni:hover {
+  background: #f1f3f6;
+}
+
+/* Grand Total Footer Card */
+.bottom-actionsi {
+  max-width: 1000px;
+  margin: 20px auto;
+  background: white;
+  padding: 24px;
+  box-shadow: 0 -2px 10px 0 rgba(0,0,0,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  bottom: 0;
+}
+
+.total-valuei {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.confirm-order-buttoni {
+  background: var(--fk-orange);
+  color: white;
+  border: none;
+  padding: 16px 40px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 2px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px 0 rgba(0,0,0,0.2);
+  text-transform: uppercase;
+}
+
+.confirm-order-buttoni:disabled {
+  background: #e0e0e0;
+  color: #9e9e9e;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+  .order-details-gridi { grid-template-columns: 1fr 1fr; }
+  .file-detailsi { grid-template-columns: 1fr; }
   .bottom-actionsi {
-    margin-top: 24px;
-    padding-top: 18px;
-    border-top: 2px dashed #e0e6ed;
-    display: flex;
-    justify-content: flex-end;
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+    text-align: center;
   }
-  
-  .grand-totali {
-    font-size: 18px;
-    padding: 12px 18px;
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    border: 1px solid #e0e6ed;
-  }
-  
-  .total-labeli {
-    font-weight: 600;
-    color: #7f8c8d;
-    margin-right: 10px;
-  }
-  
-  .total-valuei {
-    font-weight: 700;
-    color: #e74c3c;
-    font-size: 22px;
-  }
-  
-  /* Responsive design */
-  @media (max-width: 768px) {
-    .order-details-gridi {
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-    
-    .file-headeri {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    
-    .upload-timei {
-      margin-top: 8px;
-    }
-    
-    .file-detailsi {
-      grid-template-columns: 1fr;
-    }
-    
-    .detail-itemi {
-      padding: 8px 0;
-    }
-    
-    .admin-actionsi {
-      flex-direction: column;
-      gap: 12px;
-    }
-    
-    .admin-action-buttoni, 
-    .confirm-order-buttoni {
-      width: 100%;
-    }
-    
-    .xerox-preview-containeri {
-      padding: 15px;
-    }
-    
-    .summary-cardi, 
-    .files-containeri {
-      padding: 15px;
-    }
-  }
-  
-  /* Additional mobile optimizations */
-  @media (max-width: 480px) {
-    .preview-headeri {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 10px;
-    }
-    
-    .order-id-displayi {
-      align-self: flex-start;
-    }
-    
-    .detail-groupi {
-      padding: 10px;
-    }
-    
-    .file-notesi {
-      padding: 12px;
-      margin-top: 15px;
-    }
-    
-    .bottom-actionsi {
-      margin-top: 20px;
-    }
-    
-    .grand-totali {
-      width: 100%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-  }
+}

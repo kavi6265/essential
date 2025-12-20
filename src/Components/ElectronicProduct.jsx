@@ -8,1029 +8,294 @@ import {
   orderByKey,
   limitToLast,
   remove,
-  update,
 } from 'firebase/database';
 import {
   ref as storageRef,
   uploadBytes,
   getDownloadURL,
-  deleteObject,
 } from 'firebase/storage';
-// Assuming 'firebase.js' is in the same folder (e.g., components/firebase.js)
-// If firebase.js is in the root (e.g., src/firebase.js), update this import
-// NOTE: The error "Could not resolve ./firebase.js" means this file is missing or in the wrong path
-// in your project structure. This file should contain your Firebase app initialization.
 import { database, storage } from './firebase.js';
 
-// Import the stylesheet
-// import '../css/ElectronicProduct.css'; // Removed this import
-
 // --- CSS STYLES ---
-// Instead of importing, we embed the CSS here.
 const cssStyles = `
-/* --- Global Styles --- */
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  margin: 0;
-  background-color: #f3f4f6; /* Default background */
-}
+.product-admin-container { background-color: #f3f4f6; min-height: 100vh; padding: 1.5rem; font-family: 'Segoe UI', sans-serif; }
+.main-content-wrapper { max-width: 1200px; margin: 0 auto; }
 
-/* Ensures box-sizing for all elements */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
+.card-container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 2rem; }
+.card-title { margin: 0 0 20px 0; color: #1f2937; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px; font-size: 1.5rem; }
 
-/* --- Main Layout --- */
-.product-admin-container {
-  background-color: #f3f4f6;
-  min-height: 100vh;
-  padding: 1rem;
-}
-@media (min-width: 640px) {
-  .product-admin-container {
-    padding: 2rem;
-  }
-}
+.form-space-y { display: flex; flex-direction: column; gap: 15px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.form-input, .form-textarea { width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; }
+.form-textarea { height: 100px; resize: vertical; }
 
-.main-content-wrapper {
-  max-width: 80rem; /* Corresponds to max-w-7xl */
-  margin-left: auto;
-  margin-right: auto;
-}
+.image-section-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px dashed #d1d5db; }
+.small-images-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.preview-thumb { width: 100%; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; margin-top: 5px; background: #eee; }
+.label-sm { font-size: 12px; font-weight: bold; color: #6b7280; display: block; margin-bottom: 5px; }
 
-/* --- Card Container (Used for Add Form and List) --- */
-.card-container {
-  background-color: #ffffff;
-  padding: 1.5rem;
-  border-radius: 1rem; /* rounded-2xl */
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
-  margin-bottom: 2rem;
-}
-@media (min-width: 640px) {
-  .card-container {
-    padding: 2rem;
-  }
-}
+.discount-card { background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #bbf7d0; }
+.price-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px; }
+.total-row { border-top: 1px solid #bbf7d0; margin-top: 8px; padding-top: 8px; font-weight: bold; color: #166534; font-size: 16px; }
 
-.card-title {
-  font-size: 1.875rem; /* text-3xl */
-  font-weight: 700;
-  color: #1f2937; /* text-gray-800 */
-  margin-top: 0;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-@media (min-width: 640px) {
-  .card-title {
-    text-align: left;
-  }
-}
+.btn-group { display: flex; gap: 10px; margin-top: 10px; }
+.btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; flex: 1; text-align: center; }
+.btn-save { background: #2563eb; color: white; }
+.btn-cancel { background: #9ca3af; color: white; }
+.btn-delete { background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; }
 
-/* --- Form Styles --- */
-.form-space-y {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
+.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.product-card { background: white; border-radius: 10px; overflow: hidden; border: 1px solid #eee; transition: transform 0.2s; display: flex; flex-direction: column; }
+.product-card:hover { transform: translateY(-5px); }
+.main-card-img { width: 100%; height: 180px; object-fit: cover; }
+.gallery-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; background: #f3f4f6; padding: 4px; }
+.gallery-img { width: 100%; height: 40px; object-fit: cover; background: #ddd; }
+.card-info { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; }
 
-.form-grid-cols-2 {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
-@media (min-width: 768px) {
-  .form-grid-cols-2 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.form-input,
-.form-textarea {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db; /* border-gray-300 */
-  border-radius: 0.5rem; /* rounded-lg */
-  color: #374151; /* text-gray-700 */
-  font-size: 1rem;
-  font-family: inherit;
-}
-
-.form-input:focus,
-.form-textarea:focus {
-  outline: none;
-  border-color: #3b82f6; /* focus:ring-blue-500 */
-  box-shadow: 0 0 0 2px #bfdbfe; /* focus:ring-2 */
-}
-
-.form-textarea {
-  min-height: 8rem; /* Approximates rows="4" */
-  resize: vertical;
-}
-
-.form-label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #4b5563; /* text-gray-600 */
-  margin-bottom: 0.25rem;
-}
-
-.form-file-input {
-  width: 100%;
-  font-size: 0.875rem;
-  color: #4b5563;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  padding: 0.5rem;
-}
-
-/* Style the file input button */
-.form-file-input::file-selector-button {
-  margin-right: 1rem;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  border: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  background-color: #eef2ff; /* bg-blue-50 */
-  color: #4338ca; /* text-blue-700 */
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.form-file-input::file-selector-button:hover {
-  background-color: #e0e7ff; /* hover:bg-blue-100 */
-}
-
-.form-actions {
-  padding-top: 0.5rem;
-}
-
-/* --- Button Styles --- */
-.btn {
-  padding: 0.75rem 1.5rem;
-  font-weight: 700;
-  border-radius: 0.5rem;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.3s ease, opacity 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  line-height: 1.25rem;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background-color: #2563eb; /* bg-blue-600 */
-  color: white;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
-}
-.btn-primary:hover:not(:disabled) {
-  background-color: #1d4ed8; /* hover:bg-blue-700 */
-}
-
-.btn-secondary {
-  background-color: #e5e7eb; /* bg-gray-200 */
-  color: #374151; /* text-gray-700 */
-}
-.btn-secondary:hover:not(:disabled) {
-  background-color: #d1d5db; /* hover:bg-gray-300 */
-}
-
-.btn-warning {
-  background-color: #f59e0b; /* bg-yellow-400 */
-  color: #78350f; /* text-yellow-900 */
-  font-size: 0.875rem;
-  padding: 0.5rem 1rem;
-}
-.btn-warning:hover:not(:disabled) {
-  background-color: #d97706; /* hover:bg-yellow-500 */
-}
-
-.btn-danger {
-  background-color: #dc2626; /* bg-red-500 */
-  color: white;
-  font-size: 0.875rem;
-  padding: 0.5rem 1rem;
-}
-.btn-danger:hover:not(:disabled) {
-  background-color: #b91c1c; /* hover:bg-red-600 */
-}
-
-/* Button loading spinner */
-.btn-loader {
-  animation: spin 1s linear infinite;
-  margin-right: 0.75rem;
-  width: 1.25rem;
-  height: 1.25rem;
-}
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* --- Product List --- */
-.product-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem; /* gap-6 */
-}
-@media (min-width: 640px) {
-  .product-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (min-width: 1024px) {
-  .product-grid { grid-template-columns: repeat(3, 1fr); }
-}
-@media (min-width: 1280px) {
-  .product-grid { grid-template-columns: repeat(4, 1fr); }
-}
-
-.loading-text,
-.empty-text {
-  text-align: center;
-  color: #6b7280; /* text-gray-500 */
-  padding: 2.5rem 0;
-  font-size: 1.125rem;
-}
-
-/* --- Product Card --- */
-.product-card {
-  display: flex;
-  flex-direction: column;
-  background-color: white;
-  border-radius: 0.5rem; /* rounded-lg */
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
-  overflow: hidden;
-  transition: box-shadow 0.3s ease;
-}
-.product-card:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* hover:shadow-xl */
-}
-
-.product-card-img {
-  width: 100%;
-  height: 12rem; /* h-48 */
-  object-fit: cover;
-}
-
-.product-card-body {
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-}
-
-.product-card-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #1f2937;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis; /* truncate */
-  margin-top: 0;
-  margin-bottom: 0.25rem;
-}
-
-.product-card-brand {
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin-bottom: 0.5rem;
-}
-
-.product-card-desc {
-  font-size: 0.875rem;
-  color: #4b5563;
-  height: 3rem; /* Fixed height for 2 lines */
-  line-height: 1.5rem;
-  overflow: hidden;
-  margin-bottom: 0.75rem;
-  /* For multi-line ellipsis (works in webkit) */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.product-card-price-section {
-  margin-top: auto; /* Pushes to bottom */
-  margin-bottom: 0.75rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.product-card-final-price {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #2563eb;
-  margin: 0;
-}
-
-.product-card-discount-section {
-  text-align: right;
-}
-
-.product-card-original-price {
-  color: #6b7280;
-  text-decoration: line-through;
-  font-size: 0.875rem;
-  margin: 0;
-}
-
-.product-card-discount-badge {
-  font-size: 0.75rem;
-  font-weight: 600;
-  background-color: #fee2e2; /* bg-red-100 */
-  color: #b91c1c; /* text-red-700 */
-  padding: 0.125rem 0.5rem;
-  border-radius: 9999px; /* rounded-full */
-}
-
-.product-card-actions {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
-  padding-top: 0.75rem;
-  margin-top: 0.5rem;
-  border-top: 1px solid #f3f4f6; /* border-gray-100 */
-}
-
-/* --- Modal Styles --- */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.modal-content {
-  background-color: white;
-  padding: 1.5rem;
-  border-radius: 1rem; /* rounded-2xl */
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* shadow-2xl */
-  width: 100%;
-  max-width: 32rem; /* max-w-lg */
-  max-height: 90vh;
-  overflow-y: auto;
-}
-@media (min-width: 640px) {
-  .modal-content {
-    padding: 2rem;
-  }
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.modal-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0;
-}
-
-.modal-close-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #9ca3af; /* text-gray-400 */
-  padding: 0;
-}
-.modal-close-btn:hover {
-  color: #4b5563; /* hover:text-gray-600 */
-}
-.modal-close-btn svg {
-  width: 1.5rem;
-  height: 1.5rem;
-}
-
-.modal-current-image-container {
-  font-size: 0.875rem;
-  color: #4b5563;
-}
-.modal-current-image {
-  width: 5rem;
-  height: 5rem;
-  object-fit: cover;
-  border-radius: 0.5rem;
-  margin-top: 0.25rem;
-  display: inline-block;
-  margin-left: 0.5rem;
-  border: 1px solid #e5e7eb;
-}
-
-.modal-footer {
-  padding-top: 0.75rem;
-  display: flex;
-  gap: 0.75rem;
-}
-
-/* Used for buttons in modal footer */
-.flex-1 {
-  flex: 1;
-}
-
-/* --- Delete Modal Specifics --- */
-.modal-content-delete {
-  max-width: 24rem; /* max-w-sm */
-  padding: 2rem;
-}
-
-.modal-title-delete {
-  text-align: center;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-top: 0;
-  margin-bottom: 1rem;
-}
-
-.modal-body-delete {
-  color: #4b5563;
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-.modal-body-delete strong {
-  color: #111827; /* text-gray-900 */
-}
-
-.modal-footer-delete {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: center;
-}
-
-/* --- Notification Toast --- */
-.notification-toast {
-  position: fixed;
-  top: 1.25rem;
-  right: 1.25rem;
-  z-index: 50;
-  color: white;
-  padding: 1rem 1.5rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  transition: all 0.3s ease;
-  min-width: 250px;
-  max-width: 90vw;
-}
-.notification-toast.success {
-  background-color: #10b981; /* bg-green-500 */
-}
-.notification-toast.error {
-  background-color: #ef4444; /* bg-red-500 */
-}
-
-.notification-close-btn {
-  margin-left: 1rem;
-  background: none;
-  border: none;
-  color: white;
-  opacity: 0.7;
-  cursor: pointer;
-  padding: 0;
-  line-height: 0;
-}
-.notification-close-btn:hover {
-  opacity: 1;
-}
+.price-container { display: flex; align-items: baseline; gap: 8px; margin-top: auto; flex-wrap: wrap; }
+.price-main { color: #2563eb; font-size: 1.4rem; font-weight: 800; }
+.price-original { text-decoration: line-through; color: #9ca3af; font-size: 0.9rem; }
+.discount-badge { background: #dcfce7; color: #166534; font-size: 0.75rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; }
 `;
 
-// --- Helper component to inject styles ---
-const EmbeddedStyles = () => {
-  useEffect(() => {
-    const styleTag = document.createElement('style');
-    styleTag.innerHTML = cssStyles;
-    document.head.appendChild(styleTag);
-    
-    // Cleanup function to remove styles when component unmounts
-    return () => {
-      document.head.removeChild(styleTag);
-    };
-  }, []); // Empty dependency array means this runs once on mount
-
-  return null; // This component doesn't render anything visible
-};
-
-// --- Helper function to reset the form state ---
-const getInitialFormState = () => ({
-  productName: '',
+const getInitialState = () => ({
+  name: '',
   description: '',
   price: '',
   brand: '',
   discount: '',
-  imageFile: null,
-  imageUrl: '', // Keep track of the current image URL for updates
+  mainFile: null,
+  mainUrl: '',
+  smallFiles: [null, null, null, null],
+  smallUrls: ['', '', '', ''],
 });
 
-// --- SVG Icons ---
-const CloseIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.5rem', height: '1.5rem' }}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
-
-const LoaderIcon = () => (
-  <svg className="btn-loader" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" style={{ opacity: 0.25 }}></circle>
-    <path fill="currentColor" style={{ opacity: 0.75 }} d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-  </svg>
-);
-
-
 function ElectronicProduct() {
-  // --- States for the View List ---
-  const [electronics, setElectronics] = useState([]);
-  const [loadingList, setLoadingList] = useState(true);
+  const [products, setProducts] = useState([]);
+  const [form, setForm] = useState(getInitialState());
+  const [editId, setEditId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef();
 
-  // --- State for Notifications ---
-  const [notification, setNotification] = useState({
-    show: false,
-    message: '',
-    type: 'success', // 'success' or 'error'
-  });
-
-  // --- States for the Form (Add/Edit) ---
-  const [formState, setFormState] = useState(getInitialFormState());
-  const [editingItemKey, setEditingItemKey] = useState(null); // If this is set, we are in "edit" mode
-  const [loadingForm, setLoadingForm] = useState(false);
-  const formRef = useRef(null); // Ref for the form element
-
-  // --- NEW State for Delete Confirmation Modal ---
-  const [deleteModal, setDeleteModal] = useState({ show: false, item: null });
-
-  // --- Notification Helper ---
-  /**
-   * Shows a notification message for 3 seconds.
-   * @param {string} message The message to display.
-   * @param {string} type 'success' (green) or 'error' (red).
-   */
-  const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification((n) => ({ ...n, show: false }));
-    }, 3000); // Hide after 3 seconds
-  };
-
-  // --- 1. READ: Fetch all items from Firebase (Real-time) ---
+  // 1. Load Products
   useEffect(() => {
-    setLoadingList(true);
-    // Try-catch block to handle potential error from missing firebase.js
-    try {
-      const electronicsRef = dbRef(database, 'ELECTRONIC');
-
-      const unsubscribe = onValue(
-        electronicsRef,
-        (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val();
-            const loadedElectronics = Object.keys(data).map((key) => ({
-              id: key, // The Firebase key is our ID
-              ...data[key],
-            }));
-            setElectronics(loadedElectronics);
-          } else {
-            setElectronics([]);
-          }
-          setLoadingList(false);
-        },
-        (error) => {
-          console.error('Firebase read error:', error);
-          showNotification('Failed to load electronic items.', 'error'); // Use notification
-          setLoadingList(false);
-        }
-      );
-
-      return () => unsubscribe(); // Cleanup listener on unmount
-    } catch (error) {
-        console.error("Failed to initialize Firebase listener. Is firebase.js configured correctly?", error);
-        showNotification('Firebase is not configured. Please check console.', 'error');
-        setLoadingList(false);
-    }
+    const productsRef = dbRef(database, 'ELECTRONIC');
+    onValue(productsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+        setProducts(list);
+      } else {
+        setProducts([]);
+      }
+    });
   }, []);
 
-  // --- Form input change handler ---
-  const handleFormChange = (e) => {
-    const { name, value, files } = e.target;
-    if (name === 'imageFile') {
-      setFormState((prev) => ({ ...prev, imageFile: files[0] || null }));
-    } else {
-      setFormState((prev) => ({ ...prev, [name]: value }));
+  // 2. Handle Inputs
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleMainFile = (e) => {
+    if (e.target.files[0]) {
+      setForm(prev => ({ ...prev, mainFile: e.target.files[0] }));
     }
   };
 
-  // --- 2. CREATE / UPDATE: Handle form submission ---
+  const handleSmallFile = (index, file) => {
+    const newFiles = [...form.smallFiles];
+    newFiles[index] = file;
+    setForm(prev => ({ ...prev, smallFiles: newFiles }));
+  };
+
+  // 3. Upload Logic
+  const uploadImage = async (file, path) => {
+    if (!file) return null;
+    const storageReference = storageRef(storage, path);
+    await uploadBytes(storageReference, file);
+    return await getDownloadURL(storageReference);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { productName, description, price, brand, imageFile, discount } = formState;
-
-    // Basic validation
-    if (!productName || !description || !price || (!imageFile && !editingItemKey)) {
-      showNotification('Please fill all fields. Image is required for new items.', 'error');
-      return;
-    }
-
-    setLoadingForm(true);
+    setLoading(true);
 
     try {
-      // Check if Firebase is available
-      if (!database || !storage) {
-          throw new Error("Firebase is not initialized. Check firebase.js");
-      }
-        
-      if (editingItemKey) {
-        // --- UPDATE logic ---
-        let newImageUrl = formState.imageUrl; // Keep old image by default
-
-        if (imageFile) {
-          const newImageRef = storageRef(storage, `electronic_images/${editingItemKey}_${imageFile.name}`);
-          await uploadBytes(newImageRef, imageFile);
-          newImageUrl = await getDownloadURL(newImageRef);
-
-          if (formState.imageUrl) {
-            try {
-              // Try to delete the old image.
-              // Note: This requires the full URL. A more robust way is to store the storage path.
-              // For simplicity, we try to reconstruct from URL.
-              const oldImageRef = storageRef(storage, formState.imageUrl);
-              await deleteObject(oldImageRef);
-            } catch (deleteError) {
-              // If URL is not a storage ref, it will fail. We can warn about it.
-              console.warn("Could not delete old image, it might not exist or path is wrong:", deleteError);
-            }
-          }
-        }
-
-        await update(dbRef(database, `ELECTRONIC/${editingItemKey}`), {
-          name: productName,
-          description: description,
-          price: parseFloat(price),
-          brand: brand,
-          discount: parseFloat(discount) || 0,
-          imageUrl: newImageUrl,
-        });
-        showNotification('Item updated successfully!', 'success'); // Use notification
-
-      } else {
-        // --- CREATE logic ---
-        const productsRef = dbRef(database, 'ELECTRONIC');
-        const lastProductQuery = query(productsRef, orderByKey(), limitToLast(1));
-        const snapshot = await get(lastProductQuery);
-
-        let nextKey = 3131230958; // Default start key
+      let productId = editId;
+      
+      if (!productId) {
+        const lastQuery = query(dbRef(database, 'ELECTRONIC'), orderByKey(), limitToLast(1));
+        const snapshot = await get(lastQuery);
+        let lastId = 3131230958;
         if (snapshot.exists()) {
-          const lastKey = Object.keys(snapshot.val())[0];
-          nextKey = parseInt(lastKey, 10) + 1;
+          lastId = parseInt(Object.keys(snapshot.val())[0]);
         }
-
-        const imageRef = storageRef(storage, `electronic_images/${nextKey}_${imageFile.name}`);
-        await uploadBytes(imageRef, imageFile);
-        const imageUrl = await getDownloadURL(imageRef);
-
-        await set(dbRef(database, `ELECTRONIC/${nextKey}`), {
-          name: productName,
-          description: description,
-          price: parseFloat(price),
-          brand: brand,
-          discount: parseFloat(discount) || 0,
-          imageUrl: imageUrl,
-        });
-        showNotification('Item added successfully!', 'success'); // Use notification
+        productId = lastId + 1;
       }
 
-      // --- Reset form after success ---
-      cancelEdit(); // This will clear state and reset the form via ref
-
-    } catch (err) {
-      console.error('Error submitting form:', err);
-      showNotification(err.message || 'Failed to save item.', 'error'); // Use notification
-    } finally {
-      setLoadingForm(false);
-    }
-  };
-  
-  // --- 3. DELETE: Functions to show/hide modal and confirm deletion ---
-  
-  // A. Show the delete modal
-  const showDeleteModal = (item) => {
-    setDeleteModal({ show: true, item: item });
-  };
-  
-  // B. Hide the delete modal
-  const hideDeleteModal = () => {
-    setDeleteModal({ show: false, item: null });
-  };
-
-  // C. Handle the actual deletion after confirmation
-  const confirmDelete = async () => {
-    const item = deleteModal.item;
-    if (!item) return;
-
-    try {
-      // Check if Firebase is available
-      if (!database || !storage) {
-          throw new Error("Firebase is not initialized. Check firebase.js");
+      let finalMainUrl = form.mainUrl;
+      if (form.mainFile) {
+        finalMainUrl = await uploadImage(form.mainFile, `products/${productId}/main`);
       }
-        
-      if (item.imageUrl) {
-        try {
-          // This logic assumes the image URL is a standard Firebase Storage URL
-          // A more robust solution stores the storage path (e.g., 'electronic_images/...') in the DB
-          const imagePath = decodeURIComponent(item.imageUrl.split('/o/')[1].split('?')[0]);
-          const imageRef = storageRef(storage, imagePath);
-          await deleteObject(imageRef);
-          console.log("Image deleted successfully");
-        } catch (imgErr) {
-          console.warn(`Could not delete image from storage: ${imgErr.message}. This might be ok if the path was not found.`);
+
+      const finalSmallUrls = [...form.smallUrls];
+      for (let i = 0; i < 4; i++) {
+        if (form.smallFiles[i]) {
+          finalSmallUrls[i] = await uploadImage(form.smallFiles[i], `products/${productId}/small_${i}`);
         }
       }
 
-      // Delete the database entry
-      await remove(dbRef(database, `ELECTRONIC/${item.id}`));
-      showNotification('Item deleted from database.', 'success'); // Use notification
+      const productData = {
+        name: form.name,
+        description: form.description,
+        price: parseFloat(form.price),
+        brand: form.brand,
+        discount: parseFloat(form.discount || 0),
+        imageUrl: finalMainUrl,
+        smallImages: finalSmallUrls.filter(url => url !== '')
+      };
 
-    } catch (err) {
-      console.error('Error deleting item:', err);
-      showNotification(err.message || 'Failed to delete item.', 'error'); // Use notification
+      await set(dbRef(database, `ELECTRONIC/${productId}`), productData);
+      
+      alert(editId ? "Product Updated!" : "Product Added!");
+      resetForm();
+    } catch (error) {
+      console.error(error);
+      alert("Error saving product");
     } finally {
-      hideDeleteModal(); // Close the modal
+      setLoading(false);
     }
   };
 
-  // --- Helper to set form into "Edit" mode ---
-  const startEdit = (item) => {
-    setEditingItemKey(item.id);
-    setFormState({
-      productName: item.name,
-      description: item.description,
-      price: item.price,
-      brand: item.brand,
-      discount: item.discount || '',
-      imageFile: null,
-      imageUrl: item.imageUrl, // Store old image URL
+  const resetForm = () => {
+    setForm(getInitialState());
+    setEditId(null);
+  };
+
+  const deleteProduct = async (id) => {
+    if (window.confirm("Delete this product?")) {
+      await remove(dbRef(database, `ELECTRONIC/${id}`));
+    }
+  };
+
+  const startEdit = (p) => {
+    setEditId(p.id);
+    setForm({
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      brand: p.brand,
+      discount: p.discount || '',
+      mainUrl: p.imageUrl,
+      smallUrls: p.smallImages || ['', '', '', ''],
+      mainFile: null,
+      smallFiles: [null, null, null, null]
     });
-    // Scroll to top to see the form
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // --- Helper to cancel "Edit" mode and clear form ---
-  const cancelEdit = () => {
-    setEditingItemKey(null);
-    setFormState(getInitialFormState());
-    if (formRef.current) {
-      formRef.current.reset(); // Visually clear file input
-    }
+  const calculateFinalPrice = () => {
+    const p = parseFloat(form.price) || 0;
+    const d = parseFloat(form.discount) || 0;
+    return (p - (p * d) / 100).toFixed(0);
   };
 
-  // --- Render logic for the item list ---
-  const renderList = () => {
-    if (loadingList) {
-      return <div className="loading-text">Loading items...</div>;
-    }
-    if (electronics.length === 0) {
-      return <div className="empty-text">No electronic items found.</div>;
-    }
-
-    return (
-      <div className="product-grid">
-        {electronics.map((item) => {
-          const finalPrice = item.price * (1 - (item.discount || 0) / 100);
-          return (
-            <div className="product-card" key={item.id}>
-              <img
-                src={item.imageUrl}
-                alt={item.name}
-                className="product-card-img"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = 'https://placehold.co/400x300/e9ecef/6c757d?text=Image+Error';
-                }}
-              />
-              <div className="product-card-body">
-                <h5 className="product-card-title">{item.name}</h5>
-                <h6 className="product-card-brand">{item.brand}</h6>
-                <p className="product-card-desc">
-                  {item.description}
-                </p>
-
-                <div className="product-card-price-section">
-                  <p className="product-card-final-price">${finalPrice.toFixed(2)}</p>
-                  {item.discount > 0 && (
-                    <div className="product-card-discount-section">
-                      <p className="product-card-original-price">${item.price.toFixed(2)}</p>
-                      <span className="product-card-discount-badge">
-                        {item.discount}% OFF
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* --- CRUD Buttons --- */}
-                <div className="product-card-actions">
-                  <button
-                    onClick={() => startEdit(item)}
-                    className="btn btn-warning"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => showDeleteModal(item)}
-                    className="btn btn-danger"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // --- Main Component Render ---
   return (
     <div className="product-admin-container">
-      {/* Inject styles into the document head */}
-      <EmbeddedStyles /> 
-      
-      {/* --- Notification Popup --- */}
-      {notification.show && (
-        <div 
-          className={`notification-toast ${notification.type === 'success' ? 'success' : 'error'}`}
-          role="alert"
-        >
-          {notification.message}
-          <button
-            type="button"
-            className="notification-close-btn"
-            onClick={() => setNotification({ ...notification, show: false })}
-            aria-label="Close"
-          >
-           <CloseIcon />
-          </button>
-        </div>
-      )}
-
-      {/* --- Delete Confirmation Modal --- */}
-      {deleteModal.show && (
-        <div className="modal-backdrop" onClick={hideDeleteModal}>
-          <div className="modal-content modal-content-delete" onClick={(e) => e.stopPropagation()}>
-             <h3 className="modal-title-delete">Confirm Deletion</h3>
-             <p className="modal-body-delete">
-                Are you sure you want to delete "<strong>{deleteModal.item?.name || 'this item'}</strong>"?
-                This action cannot be undone.
-             </p>
-             <div className="modal-footer-delete">
-                <button type="button" className="btn btn-secondary" onClick={hideDeleteModal}>
-                    Cancel
-                </button>
-                <button type="button" className="btn btn-danger" onClick={confirmDelete}>
-                    Delete
-                </button>
-             </div>
-          </div>
-        </div>
-      )}
-
+      <style>{cssStyles}</style>
       <div className="main-content-wrapper">
-        {/* --- Card 1: Add/Edit Form --- */}
+        
+        {/* FORM CARD */}
         <div className="card-container">
-          <h2 className="card-title">
-            {editingItemKey ? 'Edit Electronic Item' : 'Add Electronic Item'}
-          </h2>
-          <form id="electronics-form" ref={formRef} onSubmit={handleSubmit} className="form-space-y">
+          <h2 className="card-title">{editId ? 'Edit Product' : 'Add New Electronic Item'}</h2>
+          <form onSubmit={handleSubmit} className="form-space-y">
             
-            <div className="form-grid-cols-2">
-              <input
-                className="form-input"
-                type="text"
-                placeholder="Product Name"
-                name="productName"
-                value={formState.productName}
-                onChange={handleFormChange}
-                required
-              />
-              <input
-                className="form-input"
-                type="text"
-                placeholder="Brand"
-                name="brand"
-                value={formState.brand}
-                onChange={handleFormChange}
-                required
-              />
-            </div>
-            
-            <div className="form-grid-cols-2">
-              <input
-                className="form-input"
-                type="number"
-                placeholder="Price"
-                name="price"
-                value={formState.price}
-                onChange={handleFormChange}
-                required
-                min="0"
-                step="0.01"
-              />
-              <input
-                className="form-input"
-                type="number"
-                placeholder="Discount (%)"
-                name="discount"
-                value={formState.discount}
-                onChange={handleFormChange}
-                min="0"
-                max="100"
-              />
+            <div className="form-grid">
+              <input type="text" name="name" placeholder="Product Name" value={form.name} onChange={handleInputChange} className="form-input" required />
+              <input type="text" name="brand" placeholder="Brand Name" value={form.brand} onChange={handleInputChange} className="form-input" required />
             </div>
 
-            <textarea
-              className="form-textarea"
-              placeholder="Description"
-              name="description"
-              value={formState.description}
-              onChange={handleFormChange}
-              required
-            ></textarea>
+            <textarea name="description" placeholder="Product Description" value={form.description} onChange={handleInputChange} className="form-textarea" required />
 
-            <div>
-              <label htmlFor="formFile" className="form-label">
-                {editingItemKey ? 'Upload new image (optional)' : 'Product Image'}
-              </label>
-              <input
-                className="form-file-input"
-                type="file"
-                name="imageFile"
-                id="formFile"
-                accept="image/*"
-                onChange={handleFormChange}
-                required={!editingItemKey}
-              />
+            <div className="form-grid">
+              <input type="number" name="price" placeholder="Base Price (₹)" value={form.price} onChange={handleInputChange} className="form-input" required />
+              <input type="number" name="discount" placeholder="Discount (%)" value={form.discount} onChange={handleInputChange} className="form-input" />
             </div>
-            
-            {editingItemKey && formState.imageUrl && (
-              <div className="modal-current-image-container">
-                Current image:
-                <img
-                  src={formState.imageUrl}
-                  alt="Current"
-                  className="modal-current-image"
-                />
+
+            {/* IMAGE SECTION */}
+            <div className="image-section-grid">
+              <div>
+                <label className="label-sm">Main Display Image</label>
+                <input type="file" onChange={handleMainFile} accept="image/*" />
+                <img src={form.mainFile ? URL.createObjectURL(form.mainFile) : (form.mainUrl || 'https://via.placeholder.com/150')} className="preview-thumb" alt="Main" />
               </div>
-            )}
+              <div>
+                <label className="label-sm">Gallery Images (Up to 4)</label>
+                <div className="small-images-grid">
+                  {[0, 1, 2, 3].map(i => (
+                    <div key={i}>
+                      <input type="file" onChange={(e) => handleSmallFile(i, e.target.files[0])} style={{fontSize: '10px', width: '100%'}} />
+                      <img src={form.smallFiles[i] ? URL.createObjectURL(form.smallFiles[i]) : (form.smallUrls[i] || 'https://via.placeholder.com/60')} className="preview-thumb" alt={`Thumb ${i}`} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-            <div className="form-actions" style={{ display: 'flex', gap: '0.75rem' }}>
-              <button
-                type="submit"
-                disabled={loadingForm}
-                className="btn btn-primary"
-                style={{ flex: 1 }}
-              >
-                {loadingForm ? (
-                  <>
-                    <LoaderIcon />
-                    Saving...
-                  </>
-                ) : (editingItemKey ? 'Update Item' : 'Add Item')}
+            {/* PRICE PREVIEW */}
+            <div className="discount-card">
+              <div className="price-row"><span>Original Price:</span><span>₹{form.price || 0}</span></div>
+              <div className="price-row"><span>Discount:</span><span>-{form.discount || 0}%</span></div>
+              <div className="total-row"><span>Final Selling Price:</span><span>₹{calculateFinalPrice()}</span></div>
+            </div>
+
+            <div className="btn-group">
+              <button type="submit" className="btn btn-save" disabled={loading}>
+                {loading ? 'Processing...' : (editId ? 'Update Product' : 'Save Product')}
               </button>
-              {editingItemKey && (
-                <button
-                  type="button"
-                  onClick={cancelEdit}
-                  disabled={loadingForm}
-                  className="btn btn-secondary"
-                >
-                  Cancel
-                </button>
-              )}
+              {editId && <button type="button" onClick={resetForm} className="btn btn-cancel">Cancel</button>}
             </div>
           </form>
         </div>
 
-        {/* --- Card 2: View Products --- */}
-        <div className="card-container">
-          <h2 className="card-title">
-            Created Electronic Items
-          </h2>
-          {renderList()}
+        {/* LIST GRID */}
+        <h2 className="card-title">Live Inventory</h2>
+        <div className="product-grid">
+          {products.map(p => {
+            const hasDiscount = p.discount > 0;
+            const finalPrice = (p.price * (1 - (p.discount || 0) / 100)).toFixed(0);
+
+            return (
+              <div className="product-card" key={p.id}>
+                <img src={p.imageUrl} className="main-card-img" alt={p.name} />
+                <div className="gallery-strip">
+                  {(p.smallImages || ['', '', '', '']).map((img, i) => (
+                    <img key={i} src={img || 'https://via.placeholder.com/40'} className="gallery-img" alt="gallery" />
+                  ))}
+                </div>
+                <div className="card-info">
+                  <div style={{fontWeight: 'bold', fontSize: '12px', color: '#6b7280'}}>{p.brand}</div>
+                  <div style={{color: '#1f2937', marginBottom: '10px', fontWeight: '500'}}>{p.name}</div>
+                  
+                  <div className="price-container">
+                    <span className="price-main">₹{finalPrice}</span>
+                    {hasDiscount && (
+                      <>
+                        <span className="price-original">₹{p.price}</span>
+                        <span className="discount-badge">{p.discount}% OFF</span>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="btn-group" style={{marginTop: '15px'}}>
+                    <button onClick={() => startEdit(p)} className="btn" style={{background: '#f3f4f6', color: '#374151'}}>Edit</button>
+                    <button onClick={() => deleteProduct(p.id)} className="btn btn-delete">Delete</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -1038,4 +303,3 @@ function ElectronicProduct() {
 }
 
 export default ElectronicProduct;
-

@@ -1,84 +1,43 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-// Ensure 'firebase.js' is in the correct path (e.g., './firebase' or '../firebase')
-// This file must export 'database' and 'auth'
 import { database, auth } from "./firebase";
 import { ref, push, set, get } from "firebase/database";
-// Assuming the shop.css file is in '../css/shop.css' relative to this component
-import "../css/shop.css";
+import { Navbar } from "./BestProduct"; 
 
 const ElectronicKit = () => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
   const [user, setUser] = useState(null);
   const [cartItems, setCartItems] = useState([]);
   const [activeCategory, setActiveCategory] = useState("All");
   const [categories, setCategories] = useState(["All"]);
-  const [searchFocused, setSearchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success");
   const [electronicProducts, setElectronicProducts] = useState([]);
 
-  // --- Style Overrides ---
-  // We'll add a style tag for small adjustments needed for the electronics card
-  const styleOverrides = `
-    .product-price-container {
-      display: flex;
-      align-items: baseline;
-      gap: 0.5rem;
-    }
-    
-    .product-original-price {
-      font-size: 0.8rem;
-      color: #777;
-      text-decoration: line-through;
-    }
-
-    .product-discount-badge {
-      font-size: 0.75rem;
-      font-weight: 600;
-      background-color: #fee2e2;
-      color: #b91c1c;
-      padding: 0.125rem 0.5rem;
-      border-radius: 9999px;
-      margin-left: auto;
-    }
-  `;
-
-  // --- 1. Authentication and Cart Fetching ---
+  // --- Auth & Cart Sync ---
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
-      if (currentUser) {
-        fetchCart(currentUser.uid);
-      } else {
-        setCartItems([]);
-      }
+      if (currentUser) fetchCart(currentUser.uid);
+      else setCartItems([]);
     });
     return () => unsubscribe();
   }, []);
 
   const fetchCart = async (uid) => {
-    // No need to set loading here, products loading is the main indicator
     try {
-      const userCartRef = ref(database, `userscart/${uid}`);
-      const snapshot = await get(userCartRef);
+      const snapshot = await get(ref(database, `userscart/${uid}`));
       const items = [];
       if (snapshot.exists()) {
-        snapshot.forEach((child) =>
-          items.push({ id: child.key, ...child.val() })
-        );
+        snapshot.forEach((child) => items.push({ id: child.key, ...child.val() }));
       }
       setCartItems(items);
-    } catch (error) {
-      console.error("Error fetching cart:", error);
-      showToastNotification("Could not fetch cart.", "error");
-    }
+    } catch (error) { console.error(error); }
   };
 
-  // --- 2. Fetch Electronic Products ---
+  // --- Fetch Electronic Data & Generate Categories ---
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
@@ -87,30 +46,16 @@ const ElectronicKit = () => {
         const snapshot = await get(productsRef);
         if (snapshot.exists()) {
           const fetchedProducts = [];
-          const brands = new Set(); // To dynamically create categories
-
+          const brands = new Set();
           snapshot.forEach((child) => {
             const product = child.val();
-            // Add the database key as 'id'
-            fetchedProducts.push({
-              id: child.key,
-              ...product,
-            });
-            // Add brand to our set for categories
-            if (product.brand) {
-              brands.add(product.brand);
-            }
+            fetchedProducts.push({ id: child.key, ...product });
+            if (product.brand) brands.add(product.brand);
           });
-
           setElectronicProducts(fetchedProducts);
-          // Create categories from product brands
           setCategories(["All", ...Array.from(brands)]);
-        } else {
-          console.log("No electronic products found.");
-          setElectronicProducts([]);
         }
       } catch (err) {
-        console.error("Error fetching electronic products:", err);
         showToastNotification("Failed to load products.", "error");
       } finally {
         setLoading(false);
@@ -119,328 +64,217 @@ const ElectronicKit = () => {
     fetchProducts();
   }, []);
 
-  // --- 3. Helper Functions ---
   const showToastNotification = (message, type) => {
-    setToastMessage(message);
-    setToastType(type);
-    setShowToast(true);
+    setToastMessage(message); setToastType(type); setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const isProductInCart = (product) =>
-    cartItems.some((item) => item.productname === product.name);
+  const isProductInCart = (pName) => cartItems.some((item) => item.productname === pName);
 
-  // --- 4. Add to Cart Logic ---
   const addToCart = async (e, product) => {
     e.stopPropagation();
-    if (!user) {
-      showToastNotification("Please login to add items to cart", "warning");
-      navigate("/login"); // Assuming you have a /login route
-      return;
-    }
-    if (isProductInCart(product)) {
-      showToastNotification("This product is already in your cart!", "info");
-      return;
+    if (!user) { navigate("/login"); return; }
+    if (isProductInCart(product.name)) {
+      showToastNotification("Already in cart!", "info"); return;
     }
 
-    // Calculate final price based on discount
-    const finalPrice = product.price * (1 - (product.discount || 0) / 100);
+    const priceNum = parseFloat(product.price) || 0;
+    const finalPrice = priceNum * (1 - (product.discount || 0) / 100);
 
     const productData = {
       productname: product.name,
-      // Store the full image URL
       productimageurl: product.imageUrl,
-      // Store the final calculated price
-      productamt: finalPrice.toFixed(2),
-      originalamt: product.price.toFixed(2),
-      discount: product.discount || 0,
+      productamt: finalPrice.toFixed(0),
       qty: 1,
-      discription: `Brand: ${product.brand || 'N/A'}, Product: ${product.name}`,
-      rating: product.rating || 0, // Use 0 if no rating exists
     };
 
-    setLoading(true); // Show loader while adding
     try {
-      const userCartRef = ref(database, `userscart/${user.uid}`);
-      const newProductRef = push(userCartRef);
-      await set(newProductRef, productData);
-      setCartItems([...cartItems, { id: newProductRef.key, ...productData }]);
-      showToastNotification("Product added to cart successfully!", "success");
-    } catch (error) {
-      console.error("Error adding to cart:", error);
-      showToastNotification("Failed to add product to cart.", "error");
-    } finally {
-      setLoading(false); // Hide loader
-    }
+      await set(push(ref(database, `userscart/${user.uid}`)), productData);
+      setCartItems([...cartItems, productData]);
+      showToastNotification("Added to cart!", "success");
+    } catch (error) { showToastNotification("Error adding to cart", "error"); }
   };
 
-  // --- 5. Render Logic ---
-
-  // Filter products based on search and category
-  const filteredProducts = electronicProducts.filter((product) => {
-    const matchesSearch =
-      (product.name &&
-        product.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (product.brand &&
-        product.brand.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCategory =
-      activeCategory === "All" || product.brand === activeCategory;
-    return matchesSearch && matchesCategory;
+  // --- Filtering Logic ---
+  const filteredProducts = electronicProducts.filter((p) => {
+    return activeCategory === "All" || p.brand === activeCategory;
   });
-
-  const handleProductClick = (product) => {
-    // You can create an /electronic-product-detail page later
-    // navigate("/electronic-product-detail", { state: { product } });
-    console.log("Navigating to product detail for:", product);
-  };
-  const handleCategoryClick = (category) => setActiveCategory(category);
-  const clearSearch = () => setSearchQuery("");
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   return (
     <div className="shop-container">
-      <style>{styleOverrides}</style>
-      {showToast && (
-        <div className={`toast-notification ${toastType}`}>{toastMessage}</div>
-      )}
+      <Navbar user={user} />
+      
+      <style>{`
+        .shop-container { background: #f8f9fa; min-height: 100vh; padding-bottom: 50px; }
+        
+        .hero-section {
+          background: #2b7fff; color: #fff; padding: 40px 20px; text-align: left;
+          border-radius: 0 0 15px 15px; margin-bottom: 20px;
+        }
+        .hero-section h2 { font-size: 24px; font-weight: 700; margin: 0; }
+        .hero-section p { font-size: 14px; opacity: 0.9; margin-top: 5px; }
 
-      {/* Hero Section */}
+        /* --- CATEGORY SECTION STYLES --- */
+        .categories-wrapper {
+          padding: 10px 20px;
+          display: flex;
+          overflow-x: auto;
+          gap: 12px;
+          justify-content: center;
+          scrollbar-width: none; /* Firefox */
+        }
+        .categories-wrapper::-webkit-scrollbar { display: none; /* Chrome/Safari */ }
+
+        .category-pill {
+          background: #fff;
+          border: 1px solid #e0e0e0;
+          padding: 8px 20px;
+          border-radius: 50px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #555;
+          cursor: pointer;
+          white-space: nowrap;
+          justify-content: center;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        }
+        .category-pill.active {
+          background: #2b7fff;
+          color: #fff;
+          border-color: #2b7fff;
+          box-shadow: 0 4px 8px rgba(43, 127, 255, 0.3);
+        }
+
+        .products-grid {
+          display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 20px; padding: 20px; max-width: 1200px; margin: 0 auto;
+        }
+
+        .product-card {
+          background: #fff; border-radius: 12px; padding: 15px;
+          display: flex; flex-direction: column; position: relative;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: 0.3s;
+          cursor: pointer;
+        }
+
+        .product-image-container {
+          width: 100%; height: 140px; position: relative;
+          display: flex; align-items: center; justify-content: center;
+          margin-bottom: 10px;
+        }
+        
+        .product-image-container img:not(.logo-img) { 
+          max-height: 75%; max-width: 70%; object-fit: contain; 
+        }
+
+        .product-discount-badge {
+          position: absolute; top: -5px; left: -5px; background: #e31e24;
+          color: #fff; padding: 4px 10px; border-radius: 6px;
+          font-size: 12px; font-weight: 700; z-index: 10;
+        }
+
+        .logo-checkout-btn {
+          position: absolute; top: -5px; right: -5px; cursor: pointer; z-index: 10;
+        }
+        .logo-checkout-btn .logo-img { width: 38px; height: 38px; object-fit: contain; }
+
+        .product-info { padding: 5px 0 0 0; display: flex; flex-direction: column; flex-grow: 1; }
+        .product-name { font-size: 17px; font-weight: 600; color: #333; margin: 0 0 10px 0; height: 42px; overflow: hidden; }
+
+        .price-row {
+          display: flex; justify-content: space-between; align-items: baseline;
+          margin-bottom: 15px; width: 100%;
+        }
+        .current-price { font-size: 20px; font-weight: 700; color: #2b7fff; }
+        .old-price { font-size: 14px; color: #aaa; text-decoration: line-through; margin-left: 8px; }
+
+        .add-cart-btn {
+          width: 100%; background: #2b7fff; color: white; border: none;
+          padding: 10px; border-radius: 8px; font-weight: 700; font-size: 15px;
+          cursor: pointer; transition: 0.2s; margin-top: auto;
+        }
+
+        @media (max-width: 600px) {
+          .products-grid { grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
+          .product-card { padding: 10px; border-radius: 10px; }
+          .product-image-container { height: 110px; }
+          .product-name { font-size: 14px; height: 35px; }
+          .current-price { font-size: 17px; }
+          .logo-checkout-btn .logo-img { width: 32px; height: 32px; }
+        }
+      `}</style>
+
+      {showToast && <div className={`toast-notification ${toastType}`}>{toastMessage}</div>}
+
       <section className="hero-section">
-        <div className="hero-content">
-          <h2>Find Your Perfect Gadget</h2>
-          <p>Discover the latest in tech and electronics</p>
-          <div
-            className={`search-containershop ${searchFocused ? "focused" : ""}`}
+        <h2>Electronic Components</h2>
+        <p>Find everything you need for your engineering projects</p>
+      </section>
+
+      {/* --- RENDER CATEGORY PILLS --- */}
+      <div className="categories-wrapper">
+        {categories.map((cat) => (
+          <div 
+            key={cat} 
+            className={`category-pill ${activeCategory === cat ? 'active' : ''}`}
+            onClick={() => setActiveCategory(cat)}
           >
-            <input
-              type="text"
-              placeholder="Search for electronics..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-            />
-            {searchQuery && (
-              <button className="clear-search" onClick={clearSearch}>
-                ×
-              </button>
-            )}
+            {cat}
           </div>
-        </div>
-      </section>
-
-      {/* Categories Section (Dynamic) */}
-      <section className="categories-section">
-        {categories.map((category) => (
-          <button
-            key={category}
-            className={`category-btn ${
-              activeCategory === category ? "active" : ""
-            }`}
-            onClick={() => handleCategoryClick(category)}
-          >
-            {category}
-          </button>
         ))}
-      </section>
+      </div>
 
-      {/* Products Grid */}
       <section className="products-section">
         {loading ? (
-          <div className="loading-text">Loading Products...</div>
+          <div style={{textAlign:'center', padding:'50px'}}>Loading...</div>
         ) : (
           <div className="products-grid">
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map((product) => {
-                const inCart = isProductInCart(product);
-                const finalPrice =
-                  product.price * (1 - (product.discount || 0) / 100);
-                return (
-                  <div
-                    className="product-card"
-                    key={product.id}
-                    onClick={() => handleProductClick(product)}
-                  >
-                    <div className="product-image-container">
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src =
-                            "https://placehold.co/400x300/e9ecef/6c757d?text=No+Image";
-                        }}
-                      />
-                      {product.discount > 0 && (
-                          <span className="product-discount-badge">
-                            {product.discount}% OFF
-                          </span>
-                        )}
-                      <div className="product-actions">
-                        <button
-                          className={`cart-btn ${inCart ? "in-cart" : ""}`}
-                          onClick={(e) => addToCart(e, product)}
-                          disabled={inCart}
-                        >
-                          <i
-                            className={`bx ${inCart ? "bx-check" : "bx-cart"}`}
-                          ></i>
-                        </button>
-                        {/* We remove the 'view' button as card click is the view action
-                        <button
-                          className="view-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleProductClick(product);
-                          }}
-                        >
-                          <i className="bx bx-show"></i>
-                        </button>
-                        */}
-                      </div>
+            {filteredProducts.map((product) => {
+              const inCart = isProductInCart(product.name);
+              const priceNum = parseFloat(product.price);
+              const finalPrice = priceNum * (1 - (product.discount || 0) / 100);
+
+              return (
+                <div className="product-card" key={product.id} onClick={() => navigate("/product", { state: { product } })}>
+                  <div className="product-image-container">
+                    {product.discount > 0 && <span className="product-discount-badge">{product.discount}% OFF</span>}
+                    
+                    <div className="logo-checkout-btn" onClick={(e) => {
+                      e.stopPropagation();
+                      navigate("/checkout", { state: { product } });
+                    }}>
+                      <img src="/jasalogo512px.png" alt="Buy Now" className="logo-img" />
                     </div>
 
-                    <div className="product-info">
-                      <span className="product-brand">
-                        {product.brand || "Generic"}
-                      </span>
-                      <h5 className="product-name">{product.name}</h5>
-                      <div className="product-footer">
-                        <div className="product-price-container">
-                          <span className="product-price">
-                            ${finalPrice.toFixed(2)}
-                          </span>
-                          {product.discount > 0 && (
-                            <span className="product-original-price">
-                              ${product.price.toFixed(2)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <img src={product.imageUrl} alt={product.name} />
                   </div>
-                );
-              })
-            ) : (
-              <div className="empty-text">
-                No products found matching your criteria.
-              </div>
-            )}
+
+                  <div className="product-info">
+                    <h5 className="product-name">{product.name}</h5>
+                    
+                    <div className="price-row">
+                      <span className="current-price">₹{finalPrice.toFixed(0)}</span>
+                      {product.discount > 0 && <span className="old-price">₹{product.price}</span>}
+                    </div>
+
+                    <button 
+                      className="add-cart-btn" 
+                      onClick={(e) => addToCart(e, product)}
+                      style={{ background: inCart ? '#555' : '#2b7fff' }}
+                      disabled={inCart}
+                    >
+                      {inCart ? "In Cart" : "Add to cart"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
-
-      <button className="scroll-to-top" onClick={scrollToTop}>
-        ↑
-      </button>
-
-      {/* Footer (Copied from Shop.js) */}
-      <footer className="modern-footer">
-        <div className="footer-content">
-          <div className="footer-column brand-column">
-            <h3>Jasa Essential</h3>
-            <p>
-              Your trusted partner for quality stationery products for students
-              and professionals. We offer a wide range of supplies at
-              competitive prices.
-            </p>
-            <div className="social-icons">
-              <a href="https://www.instagram.com/jasa_essential?igsh=MWVpaXJiZGhzeDZ4Ng==">
-                <i className="bx bxl-instagram"></i>
-              </a>
-            </div>
-          </div>
-
-          <div className="footer-column">
-            <h4>Quick Links</h4>
-            <ul>
-              <li>
-                <a href="#">Home</a>
-              </li>
-              <li>
-                <a href="#">Shop</a>
-              </li>
-              <li>
-                <a href="#">About Us</a>
-              </li>
-              <li>
-                <a href="#">Contact</a>
-              </li>
-              <li>
-                <a href="#">FAQ</a>
-              </li>
-            </ul>
-          </div>
-
-          <div className="footer-column">
-            <h4>Customer Service</h4>
-            <ul>
-              <li>
-                <a href="#">My Account</a>
-              </li>
-              <li>
-                <a href="#">Order History</a>
-              </li>
-              <li>
-                <a href="#">Shipping Policy</a>
-              </li>
-              <li>
-                <a href="#">Returns & Exchanges</a>
-              </li>
-              <li>
-                <a href="#">Terms & Conditions</a>
-              </li>
-            </ul>
-          </div>
-
-          <div className="footer-column contact-info">
-            <h4>Contact Us</h4>
-            <p>
-              <i className="bx bx-map"></i>2/3 line medu pension line 2 nd
-              street line medu , salem 636006
-            </p>
-            <p>
-              <i className="bx bx-phone"></i> (+91) 7418676705
-            </p>
-            <p>
-              <i className="bx bx-envelope"></i> jasaessential@gmail.com
-            </p>
-          </div>
-        </div>
-
-        <div className="footer-bottom" style={{ display: "block" }}>
-          <p>&copy; 2025 Jasa Essential. All Rights Reserved.</p>
-          <div className="footer-content">
-            <p
-              className="copyright1"
-              style={{ flexDirection: "row" }}
-            >
-              Developed by{" "}
-              <a
-                href="https://rapcodetechsolutions.netlify.app/"
-                className="develop-aa"
-              >
-                <img
-                  src="/Rapcode.png"
-                  style={{
-                    width: "20px",
-                    height: "20px",
-                    display: "flex",
-                    margin: "auto",
-                    flexDirection: "row",
-                    marginLeft: "10px",
-                  }}
-                  alt="RapCode Logo"
-                />
-                RapCode Tech Solutions
-              </a>
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
 
 export default ElectronicKit;
-

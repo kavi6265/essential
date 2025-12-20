@@ -51,6 +51,7 @@ import Products from "./Components/Products";
 import ManageUser from "./Components/ManageUser";
 import ElectronicProduct from "./Components/ElectronicProduct";
 import ViewProduct from "./Components/ViewProduct";
+import Banner from "./Components/Banner";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -372,6 +373,7 @@ function App() {
           <Route path="manageuser" element={<ManageUser />} />
           <Route path="electronicproduct" element={<ElectronicProduct />} />
           <Route path="viewproduct" element={<ViewProduct />} />
+           <Route path="banner" element={<Banner />} />
         </Route>
 
         {/* Temp Admin Routes */}

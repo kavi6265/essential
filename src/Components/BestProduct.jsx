@@ -590,24 +590,38 @@ useEffect(() => {
         
         {/* --- Card Header: Contains the new "Buy Now" button on the right --- */}
         <div className="fk-card-header">
-            {/* THIS BUTTON IS NOW "BUY NOW" AND GOES TO CHECKOUT */}
-            <button
-              type="button"
-              className="fk-icon-cart-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                // Direct navigation to checkout with the product data
-                navigate("/checkout", { state: { product } });
-              }}
-              aria-label="Buy now"
-            >
-              <img 
-                src="/jasalogo512px.png" // Use your logo path here
-                alt="Jasa Buy Now"
-                className="fk-buy-now-logo" // New class for sizing the image
-              />
-            </button>
-        </div>
+  <button
+    type="button"
+    className="fk-icon-cart-btn"
+    onClick={(e) => {
+      e.stopPropagation();
+
+      // Ensure we pick up the image regardless of the database key name
+      const rawImg = product.productimageurl || product.productimage || product.img || product.imageUrl || "";
+
+      const checkoutProduct = {
+        // IDs and Names must match what Checkout.jsx expects to display
+        id: product.id || product.key || Date.now().toString(),
+        productname: product.name || product.productname || "Product",
+        productamt: String(product.price || product.productamt || "0"),
+        discount: product.discount || 0,
+        // Crucial: convert numeric IDs from your imageNames structure to strings
+        productimage: String(rawImg).trim() 
+      };
+
+      navigate("/checkout", { state: { product: checkoutProduct } });
+    }}
+    style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
+  >
+    <img 
+      src="/jasalogo512px.png" 
+      alt="Buy Now" 
+      style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+    />
+  </button>
+</div>
+
+
         {/* ----------------------------------------------------------- */}
 
         <div className="fk-imgbox">

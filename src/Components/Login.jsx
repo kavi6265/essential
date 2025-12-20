@@ -9,7 +9,7 @@ import { ref, onValue, get, set, remove } from "firebase/database";
 import "../css/Login.css";
 
 /* ---------------- NAVBAR COMPONENT ---------------- */
-function Navbar({ user, auth }) {
+export function Navbar({ user, auth }) {
   const location = useLocation();
   const navigate = useNavigate();
   

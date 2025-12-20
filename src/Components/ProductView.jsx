@@ -1,10 +1,361 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { database, auth } from "./firebase";
 import { ref, push, set, onValue } from "firebase/database";
 import "../css/ProductView.css";
 
-// Image ID mapping (keep your mapping)
+
+export function Navbar({ user }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setSearchQuery(params.get("search") || "");
+  }, [location.search]);
+
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return;
+    navigate(`/best-product?search=${encodeURIComponent(searchQuery)}`);
+  };
+
+  const isActive = (path) => (location.pathname === path ? "active" : "");
+
+  /* Icons */
+  const SearchIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007bff" strokeWidth="2">
+      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+  const HeaderHomeIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    </svg>
+  );
+  const HeaderCartIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
+    </svg>
+  );
+  const HeaderUserIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="7" r="4" /><path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+    </svg>
+  );
+
+  return (
+    <>
+      <header className="fk-header">
+        <div className="fk-desktop-row">
+          <div className="fk-left-section">
+            <div className="fk-logo" onClick={() => navigate("/")}>
+              <img src="/jasalogo512px.png" alt="Logo" />
+            </div>
+          </div>
+          
+          <div className="fk-search-new-style desktop-center-search">
+            <input
+              type="text"
+              placeholder="Search of your order"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            />
+            <span onClick={handleSearch}><SearchIcon /></span>
+          </div>
+
+          <div className="fk-right-buttons">
+            <Link to="/" className={`fk-header-btn home-btn secondary-btn ${isActive("/")}`}>
+                <HeaderHomeIcon /> <span>Home</span>
+            </Link>
+            <Link to="/cart" className={`fk-header-btn cart-btn secondary-btn ${isActive("/cart")}`}>
+                <HeaderCartIcon /> <span>Cart</span>
+            </Link>
+            {user ? (
+              <Link to="/profile" className={`fk-header-btn profile-btn secondary-btn ${isActive("/profile")}`}>
+                <HeaderUserIcon /> <span>Profile</span>
+              </Link>
+            ) : (
+              <Link to="/login" className={`fk-header-btn login-btn primary-btn ${isActive("/login")}`}>
+                <HeaderUserIcon /> <span>Login</span>
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className="fk-mobile-header">
+          <div className="fk-logo" onClick={() => navigate("/")}>
+            <img src="/jasalogo512px.png" alt="Logo" />
+          </div>
+          <div className="fk-search-new-style">
+            <input
+              type="text"
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <span onClick={handleSearch}><SearchIcon /></span>
+          </div>
+        </div>
+      </header>
+
+      <nav className="fk-bottom-nav">
+        <Link to="/" className={isActive("/")}><HeaderHomeIcon /><span>Home</span></Link>
+        <Link to="/cart" className={isActive("/cart")}><HeaderCartIcon /><span>Cart</span></Link>
+        {user ? (
+          <Link to="/profile" className={isActive("/profile")}><HeaderUserIcon /><span>Profile</span></Link>
+        ) : (
+          <Link to="/login" className={isActive("/login")}><HeaderUserIcon /><span>Login</span></Link>
+        )}
+      </nav>
+
+      <style>{`
+        /* ... Paste your CSS styles here ... */
+         * { box-sizing: border-box; }
+
+        .fk-header {
+          background: #fff;
+          border-bottom: 1px solid #eee;
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+        }
+
+        .fk-logo img {
+          height: 45px;
+          cursor: pointer;
+        }
+
+        /* --- DESKTOP STRUCTURE --- */
+        
+        .fk-desktop-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between; 
+          padding: 10px 20px;
+          max-width: 1400px;
+          margin: 0 auto;
+        }
+
+        .fk-left-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-shrink: 0;
+        }
+
+        /* 1. RESTORED: Search Box (Center) */
+        .fk-search-new-style {
+          flex-grow: 1;
+          max-width: 500px;
+          margin: 0 20px;
+          position: relative; 
+          display: flex;
+          align-items: center;
+          border: 1.5px solid #ccc;
+          border-radius: 999px;
+          height: 40px;
+          overflow: hidden; 
+        }
+        
+        /* Ensure search bar is centered only on desktop */
+        .desktop-center-search {
+             margin: 0 20px; 
+        }
+
+        .fk-search-new-style input {
+          flex: 1;
+          border: none;
+          outline: none;
+          padding: 0 10px 0 20px;
+          font-size: 14px;
+          color: #333;
+          height: 100%;
+        }
+        
+        .fk-search-new-style input::placeholder {
+            color: #aaa;
+        }
+
+        .fk-search-new-style span {
+            cursor: pointer;
+            padding: 0 15px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border-left: none;
+        }
+        
+        .fk-search-new-style span svg {
+             /* Use the primary blue color for the search icon */
+            stroke: #007bff; 
+        }
+
+        /* 2. Right-side Buttons (Home/Cart/Profile/Login) */
+        .fk-right-buttons {
+            display: flex;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+        
+        /* Base button styles */
+        .fk-header-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            cursor: pointer;
+            
+            /* Unified Size and Shape */
+            height: 40px;
+            padding: 0 18px; 
+            border-radius: 999px; 
+            
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s, color 0.2s, border-color 0.2s; 
+            
+            white-space: nowrap; 
+            min-width: fit-content;
+        }
+        
+        .fk-header-btn svg {
+            margin-right: 5px;
+            stroke-width: 2;
+            width: 18px; 
+            height: 18px; 
+        }
+        
+        /* 🔵 Primary Button Style (Solid Blue - used for Login) */
+        .primary-btn {
+            background-color: #007bff; /* Solid Blue */
+            border: 1px solid #007bff;
+            color: #ffffff; 
+        }
+
+        .primary-btn svg {
+            stroke: #ffffff; 
+        }
+        
+        /* ⚪ Secondary Button Style (White/Blue Border - Default/Inactive) */
+        .secondary-btn {
+            background-color: #ffffff; 
+            border: 1px solid #007bff; /* Blue Border */
+            color: #007bff; /* Blue text */
+        }
+        
+        .secondary-btn svg {
+            stroke: #007bff; /* Blue icon stroke */
+        }
+        
+        /* 🎨 Active State for Secondary Buttons (Solid Blue Background) */
+        .secondary-btn.active {
+            background-color: #007bff; /* Solid Blue */
+            border-color: #007bff; 
+            color: #ffffff; /* White text */
+        }
+        
+        .secondary-btn.active svg {
+            stroke: #ffffff; /* White icon */
+        }
+
+
+        /* Clear previous icon styles */
+        .fk-desktop-icons, .fk-icons-new-style {
+          display: none;
+        }
+
+
+        /* ================= MOBILE ================= */
+        .fk-mobile-header,
+        .fk-bottom-nav {
+          display: none;
+        }
+        
+        @media (max-width: 900px) {
+
+          body {
+            padding-bottom: 60px;
+          }
+
+          .fk-desktop-row {
+            display: none;
+          }
+
+          /* Mobile header container now includes logo and search */
+          .fk-mobile-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+          }
+          
+          .fk-mobile-header .fk-logo {
+            flex-shrink: 0; 
+          }
+
+          /* Mobile search style: takes up remaining space */
+          .fk-mobile-header .fk-search-new-style {
+            display: flex; /* Override desktop hidden state */
+            flex-grow: 1;
+            max-width: none; 
+            margin: 0; /* Remove desktop margin */
+          }
+          
+          /* Hide the desktop icons in the mobile header view */
+          .fk-desktop-icons {
+            display: none;
+          }
+
+          /* Mobile Bottom Nav Styles */
+          .fk-bottom-nav {
+            display: flex;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: #281c72ff;
+            color: #fff;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 9999;
+          }
+
+          .fk-bottom-nav a,
+          .fk-bottom-nav div {
+            color: #fff;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 11px;
+            cursor: pointer;
+          }
+          
+          .fk-bottom-nav a svg,
+          .fk-bottom-nav div svg {
+              stroke: #fff;
+          }
+
+          .fk-bottom-nav .active {
+            color: #1a73e8; 
+          }
+          
+          .fk-bottom-nav .active svg {
+             stroke: #1a73e8;
+          }
+        }
+      `}</style>
+    </>
+  );
+}
+
+// Image ID mapping
 const IMAGE_ID_MAPPING = {
   "2131230840": "about_us.png",
   "2131230841": "afoursheet.png",
@@ -149,7 +500,6 @@ function ProductView() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // product passed via location.state or null
   const rawLocationProduct = location.state?.product || null;
 
   const [currentProduct, setCurrentProduct] = useState(null);
@@ -163,22 +513,15 @@ function ProductView() {
   const [toastMessage, setToastMessage] = useState("");
   const [showCartPreview, setShowCartPreview] = useState(false);
 
-  // Normalize a product record to consistent fields
   const normalizeProduct = (p = {}) => {
     const copy = { ...(p || {}) };
 
-    // price detection
     let priceNum = 0;
     if (typeof copy.price === "number") priceNum = copy.price;
     else if (typeof copy.price === "string") priceNum = parseFloat(copy.price.replace(/[^\d.]/g, "")) || 0;
     else if (typeof copy.productamt === "string") priceNum = parseFloat(copy.productamt.replace(/[^\d.]/g, "")) || 0;
     else priceNum = Number(copy.productamt) || 0;
 
-    // discount detection (database might store percent like 5)
-    // interpretation rules:
-    // - if discount is numeric and between 0 and 100 => treat as percent (5 => 5%)
-    // - if numeric and greater than 100 => treat as absolute discounted price candidate (rare)
-    // - if string with '%' => parse percent
     let discountRaw = copy.discount ?? copy.discountPercent ?? copy.discountamt ?? null;
     let discountPercent = null;
     let discountPriceValue = null;
@@ -190,27 +533,26 @@ function ProductView() {
       } else {
         const dNum = parseFloat(dStr.replace(/[^\d.]/g, "")) || 0;
         if (dNum > 0 && dNum <= 100) {
-          discountPercent = dNum; // percent
+          discountPercent = dNum;
         } else if (dNum > 100 && dNum < priceNum) {
-          // weird case — maybe they stored discounted absolute price
           discountPriceValue = dNum;
         } else if (dNum > 0 && priceNum > 0 && dNum < priceNum) {
-          // treat as discounted absolute price
           discountPriceValue = dNum;
         }
       }
     }
 
-    // compute final discount price if percent known
     if (discountPercent != null && priceNum && discountPercent > 0 && discountPercent <= 100) {
       discountPriceValue = +(priceNum - (priceNum * discountPercent) / 100).toFixed(2);
     }
 
-    // strings for UI
     const priceStr = `₹${Number(priceNum).toFixed(2).replace(/\.00$/, "")}`;
     const discountPriceStr = discountPriceValue ? `₹${Number(discountPriceValue).toFixed(2).replace(/\.00$/, "")}` : null;
 
     const img = copy.imageUrl || copy.img || copy.productimage || copy.productimageurl || "";
+    const smallImages = (copy.smallImages && Array.isArray(copy.smallImages)) 
+      ? copy.smallImages 
+      : [img, img, img, img];
 
     return {
       id: copy.id || copy.key || copy.productid || null,
@@ -223,11 +565,11 @@ function ProductView() {
       discountPriceValue: discountPriceValue || null,
       discountPrice: discountPriceStr,
       img,
+      smallImages,
       raw: copy,
     };
   };
 
-  // Resolve image path / mapping
   const getImagePath = (img) => {
     if (!img) return "/unknowenprofile.png";
     try {
@@ -243,7 +585,6 @@ function ProductView() {
     }
   };
 
-  // Auth & cart listener
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(user => {
       setCurrentUser(user);
@@ -260,10 +601,8 @@ function ProductView() {
       }
     });
     return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentProduct]);
 
-  // Load dynamic products
   useEffect(() => {
     const productsRef = ref(database, "products");
     const unsub = onValue(productsRef, snapshot => {
@@ -273,7 +612,6 @@ function ProductView() {
       setDynamicProducts(normalized);
       setLoading(false);
 
-      // if product came via location.state -> set normalized instance
       if (rawLocationProduct && !currentProduct) {
         const normalizedFromLocation = normalizeProduct(rawLocationProduct);
         setCurrentProduct(normalizedFromLocation);
@@ -284,12 +622,9 @@ function ProductView() {
       console.error("products onValue error:", err);
       setLoading(false);
     });
-
     return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // react to location product if dynamic list loads later
   useEffect(() => {
     if (rawLocationProduct && dynamicProducts.length > 0) {
       const match = dynamicProducts.find(d => {
@@ -299,7 +634,6 @@ function ProductView() {
       if (match) setCurrentProduct(match);
       else setCurrentProduct(normalizeProduct(rawLocationProduct));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawLocationProduct, dynamicProducts]);
 
   const showNotification = (message) => {
@@ -328,15 +662,22 @@ function ProductView() {
     const cartRef = ref(database, `userscart/${currentUser.uid}`);
     const newItemRef = push(cartRef);
 
-    // choose price to save: discountPriceValue if present else priceValue
+    // MODIFIED LOGIC:
+    // Determine the selling price (discounted price if it exists, otherwise original)
     const priceToSave = (productToAdd.discountPriceValue && productToAdd.discountPriceValue > 0)
       ? productToAdd.discountPriceValue
       : productToAdd.priceValue;
+
+    // Calculate the actual discount value (Original - Discounted)
+    const discountValue = (productToAdd.discountPriceValue && productToAdd.discountPriceValue > 0)
+      ? (productToAdd.priceValue - productToAdd.discountPriceValue).toFixed(2)
+      : 0;
 
     const itemData = {
       key: newItemRef.key,
       productname: productToAdd.name,
       productamt: String(priceToSave),
+      discount: String(discountValue), // New field: Stores the saved amount
       productimage: productToAdd.img,
       qty,
       rating: productToAdd.raw?.rating || 0,
@@ -357,6 +698,9 @@ function ProductView() {
   };
 
   const goToCart = () => navigate("/cart");
+  const setMainDisplayImg = (newImgUrl) => {
+    setCurrentProduct(prev => ({ ...prev, img: newImgUrl }));
+  };
 
   const relatedProducts = () => {
     if (!currentProduct) return [];
@@ -369,11 +713,9 @@ function ProductView() {
     return <div className="section-p1"><h2>Loading product...</h2></div>;
   }
 
-  // debug:
-  // console.log("CurrentProduct:", currentProduct);
-
   return (
     <div>
+     <Navbar user={currentUser} />
       {/* Toast */}
       <div className={`toast ${showToast ? "show" : ""}`}>
         <i className={`bx ${toastMessage.includes("already") ? "bx-info-circle" : "bx-check-circle"}`}></i>
@@ -381,42 +723,57 @@ function ProductView() {
       </div>
 
       {/* Cart preview */}
-      {showCartPreview && (
-        <div className="cart-preview-overlay">
-          <div className="cart-preview">
-            <div className="cart-preview-header">
-              <h3>Cart Preview</h3>
-              <i className="bx bx-x" onClick={() => setShowCartPreview(false)}></i>
+      {/* Cart preview */}
+{showCartPreview && (
+  <div className="cart-preview-overlay">
+    <div className="cart-preview-container">
+      <div className="cart-preview-header">
+        <h3>Cart Preview</h3>
+        <button className="close-preview" onClick={() => setShowCartPreview(false)}>
+          <i className="bx bx-x"></i>
+        </button>
+      </div>
+      
+      <div className="cart-preview-items">
+        {cartItems.length > 0 ? (
+          cartItems.slice(-3).reverse().map((item, idx) => (
+            <div className="cart-preview-item" key={idx}>
+              <div className="cart-preview-img">
+                <img src={getImagePath(item.productimage)} alt={item.productname} />
+              </div>
+              <div className="cart-preview-details">
+                <h4>{item.productname}</h4>
+                <p className="preview-price">₹{item.productamt} <span className="preview-qty">× {item.qty}</span></p>
+              </div>
             </div>
-            <div className="cart-preview-items">
-              {cartItems.slice(-3).map((item, idx) => (
-                <div className="cart-preview-item" key={idx}>
-                  <div className="cart-preview-img">
-                    <img src={getImagePath(item.productimage)} alt={item.productname} />
-                  </div>
-                  <div className="cart-preview-details">
-                    <h4>{item.productname}</h4>
-                    <p>₹{item.productamt} × {item.qty}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="cart-preview-footer">
-              <span>{cartItems.length} items in cart</span>
-              <button className="normal" onClick={goToCart}>View Cart</button>
-            </div>
-          </div>
-        </div>
-      )}
+          ))
+        ) : (
+          <p className="empty-msg">Your cart is empty</p>
+        )}
+      </div>
 
+      <div className="cart-preview-footer">
+        <div className="item-count">
+          <strong>{cartItems.length}</strong> {cartItems.length === 1 ? 'item' : 'items'} in cart
+        </div>
+        <button className="view-cart-btn" onClick={goToCart}>View Full Cart</button>
+      </div>
+    </div>
+  </div>
+)}
       {/* Product Details */}
       <section id="prodetails" className="section-p1">
         <div className="single-pro-image">
           <img src={getImagePath(currentProduct.img)} alt={currentProduct.name} width="100%" onError={(e)=>{e.target.onerror=null;e.target.src="/unknowenprofile.png"}} />
           <div className="small-img-group">
-            {[...Array(4)].map((_, idx) => (
-              <div className="small-img-col" key={idx}>
-                <img src={getImagePath(currentProduct.img)} alt="Thumbnail" className="small-img" onError={(e)=>{e.target.onerror=null;e.target.src="/unknowenprofile.png"}} />
+            {currentProduct.smallImages.map((imgUrl, idx) => (
+              <div className="small-img-col" key={idx} onClick={() => setMainDisplayImg(imgUrl)}>
+                <img 
+                  src={getImagePath(imgUrl)} 
+                  alt="Thumbnail" 
+                  className="small-img" 
+                  onError={(e)=>{e.target.onerror=null;e.target.src="/unknowenprofile.png"}} 
+                />
               </div>
             ))}
           </div>
@@ -484,7 +841,6 @@ function ProductView() {
               <div className="des">
                 <span>{item.brand}</span>
                 <h5>{item.name}</h5>
-
                 <div className="price-tag">
                   {item.discountPriceValue ? (
                     <h4>
@@ -497,7 +853,6 @@ function ProductView() {
                   )}
                 </div>
               </div>
-
               {checkIfProductInCart(item) ? (
                 <a href="#" onClick={e => { e.preventDefault(); showNotification(`${item.name} is already in your cart!`); }}>
                   <i className="bx bx-check cart-added"></i>
@@ -547,7 +902,7 @@ function ProductView() {
         </div>
       </section>
 
-      {/* Footer left unchanged */}
+      {/* Footer */}
       <footer className="footer">
         <div className="footer-container">
           <div className="footer-col about">
